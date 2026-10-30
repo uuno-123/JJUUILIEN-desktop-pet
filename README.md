@@ -1,4 +1,4 @@
-# Juju 桌宠 🐱
+# 啾莉恩 桌宠 🐱
 
 <p align="center"><img src="assets/juju-idle.png" width="180" alt="Juju 桌宠"></p>
 
