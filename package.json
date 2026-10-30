@@ -1,0 +1,48 @@
+{
+  "name": "juju-desktop-pet",
+  "version": "1.1.0",
+  "description": "Juju 桌宠 - 紫色小猫 desktop pet",
+  "main": "main.js",
+  "author": "lx",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0"
+  },
+  "build": {
+    "appId": "com.lx.juju-desktop-pet",
+    "productName": "Juju桌宠",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "style.css",
+      "pet.js",
+      "reminder.html",
+      "pomo-input.html",
+      "lines-editor.html",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "tools/audio_watch.exe",
+        "to": "audio_watch.exe"
+      }
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "Juju桌宠"
+    }
+  }
+}

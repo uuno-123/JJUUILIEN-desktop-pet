@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>添加待办提醒</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: #fff8f2;
+    color: #6b5b4f;
+    padding: 14px;
+    user-select: none;
+  }
+  h3 { font-size: 14px; margin-bottom: 10px; }
+  label { display: block; font-size: 12px; margin: 8px 0 4px; }
+  input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid #d8c8bd;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #6b5b4f;
+    background: #fff;
+    outline: none;
+  }
+  input:focus { border-color: #a98fd0; }
+  .row { display: flex; gap: 8px; margin-top: 14px; }
+  button {
+    flex: 1;
+    padding: 7px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #ok { background: #a98fd0; color: #fff; }
+  #cancel { background: #e8ddd5; color: #6b5b4f; }
+</style>
+</head>
+<body>
+  <h3>쮝! 添加待办提醒</h3>
+  <label>提醒内容</label>
+  <input id="text" maxlength="50" placeholder="例如：开会 / 下载好了看一下">
+  <label>提醒时间</label>
+  <input id="due" type="datetime-local">
+  <div class="row">
+    <button id="cancel">取消</button>
+    <button id="ok">确定</button>
+  </div>
+  <script>
+    const textEl = document.getElementById('text');
+    const dueEl = document.getElementById('due');
+    // 默认 30 分钟后
+    const d = new Date(Date.now() + 30 * 60 * 1000);
+    d.setSeconds(0, 0);
+    dueEl.value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    textEl.focus();
+
+    document.getElementById('ok').addEventListener('click', () => {
+      const text = textEl.value.trim();
+      const ts = dueEl.value ? new Date(dueEl.value).getTime() : 0;
+      if (text && ts > Date.now()) window.petAPI.submitReminder(text, ts);
+      else window.petAPI.cancelReminder();
+    });
+    document.getElementById('cancel').addEventListener('click', () => window.petAPI.cancelReminder());
+    textEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('ok').click(); });
+  </script>
+</body>
+</html>
