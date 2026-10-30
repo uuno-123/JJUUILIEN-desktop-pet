@@ -460,7 +460,7 @@ ipcMain.on('lines-submit', (_e, lines, eventLines) => {
     for (const k of Object.keys(eventLines)) {
       const arr = Array.isArray(eventLines[k]) ? eventLines[k] : [];
       const c = arr.map((s) => String(s).trim().slice(0, LINES_LEN)).filter(Boolean).slice(0, LINES_MAX);
-      if (c.length) cleanEvent[k] = c;   // 空 = 用内置默认台词
+      cleanEvent[k] = c;   // 空数组也写入：= 用户明确清空，这条台词不显示
     }
   }
   settings.eventLines = cleanEvent;
@@ -613,10 +613,10 @@ ipcMain.on('show-menu', () => { buildMenu(true); });
 let dblMs = 500;
 try {
   const out = require('child_process').execSync(
-    'reg query "HKCU\\Control Panel\\Mouse" /v DoubleClickSpeed',
-    { encoding: 'utf8', windowsHide: true }
+    'powershell -NoProfile -Command "(Get-ItemProperty \'HKCU:\\\\Control Panel\\\\Mouse\').DoubleClickSpeed"',
+    { encoding: 'utf8', windowsHide: true, timeout: 4000 }
   );
-  const m = out.match(/DoubleClickSpeed\s+REG_SZ\s+(\d+)/i);
+  const m = String(out).match(/(\d{3,4})/);
   if (m) dblMs = Math.max(200, Math.min(900, parseInt(m[1], 10)));
 } catch (_) { /* 读不到就用默认 */ }
 ipcMain.on('get-dbl-ms', (e) => { e.returnValue = dblMs; });

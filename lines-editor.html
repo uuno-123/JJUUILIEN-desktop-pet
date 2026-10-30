@@ -31,6 +31,7 @@
   }
   textarea:focus { border-color: #a98fd0; }
   textarea.empty { border-style: dashed; }
+  textarea.preset { border-style: dashed; }
   details {
     border: 2px solid #e8ddd5;
     border-radius: 8px;
@@ -68,7 +69,7 @@
   <h3>쮝! 编辑台词</h3>
   <div class="hint">
     每行一条台词，切换时随机抽一条（每项最多 10 条、每条 60 字）。<br>
-    形态台词全部删空 = 切到该形态时不说话；<b>事件台词留空 = 使用下方灰色示例的内置默认</b>。<br>
+    虚线框里的是<b>示例台词</b>，直接改就行；<b>把某一栏删空 = 这条台词彻底不显示</b>（形态和事件都一样，删掉就没有台词框了）。<br>
     可用变量：{greet} 时段问候、{now} 当前时间、{date} 日期、{min} 番茄分钟数、{h} 整点小时。
   </div>
   <div id="fields"></div>
@@ -78,6 +79,14 @@
   </div>
   <script>
     const FORM_LABELS = ['待机', '站立', '抱抱', '听歌（音乐联动）', '生日', '微笑'];
+    const FORM_DEFAULTS = [
+      '쮝쮝이 안녕~（Juju 安宁~）',
+      '站得直直的！쮝!',
+      '抱抱… 쮝쮝',
+      '总是戴着耳机听歌（其实一直在放歌）',
+      '今天是生日吗？？？？',
+      'ISFJ 微笑服务中'
+    ];
     const MAX_LINES = 10;
 
     // 事件台词定义：[key, 显示名, 内置默认（占位提示）, 额外变量说明]
@@ -127,7 +136,11 @@
       lab.textContent = label;
       const ta = document.createElement('textarea');
       ta.rows = 2;
-      ta.value = Array.isArray(savedForms[i]) ? savedForms[i].join('\n') : '';
+      // 预填：保存过 → 已保存内容（含清空的空白）；从未保存过 → 示例默认句
+      const saved = Array.isArray(savedForms[i]);
+      ta.value = saved ? savedForms[i].join('\n') : (FORM_DEFAULTS[i] || '');
+      if (!saved) ta.classList.add('preset');
+      ta.addEventListener('input', () => ta.classList.remove('preset'));
       fields.appendChild(lab);
       fields.appendChild(ta);
       return ta;
@@ -144,13 +157,14 @@
       body.className = 'ev-body';
       for (const [key, label, def] of g.items) {
         const lab = document.createElement('label');
-        lab.textContent = label + '（默认：' + def + '）';
+        lab.textContent = label;
         const ta = document.createElement('textarea');
         ta.rows = 2;
-        const saved = Array.isArray(savedEvents[key]) ? savedEvents[key].join('\n') : '';
-        ta.value = saved;
-        if (!saved) ta.classList.add('empty');   // 空的用虚线框示意"走默认"
-        ta.addEventListener('input', () => ta.classList.toggle('empty', !ta.value.trim()));
+        // 预填：用户保存过 → 显示已保存内容（含清空后的空白）；从未保存过 → 预填示例默认句
+        const saved = Array.isArray(savedEvents[key]);
+        ta.value = saved ? savedEvents[key].join('\n') : def;
+        if (!saved) ta.classList.add('preset');   // 预填示例的框加个淡色标记
+        ta.addEventListener('input', () => ta.classList.remove('preset'));
         body.appendChild(lab);
         body.appendChild(ta);
         eventBoxes[key] = ta;
@@ -163,8 +177,8 @@
       const lines = formBoxes.map((ta) => ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES));
       const events = {};
       for (const [key, ta] of Object.entries(eventBoxes)) {
-        const arr = ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES);
-        if (arr.length) events[key] = arr;   // 留空 = 恢复内置默认
+        // 空也写入：空数组 = 这条台词不显示（示例删掉就真的没了）
+        events[key] = ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES);
       }
       window.petAPI.submitLines(lines, events);
     });

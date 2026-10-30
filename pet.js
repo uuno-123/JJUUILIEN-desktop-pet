@@ -56,10 +56,11 @@ function applyEventLinesSetting(ev) {
     }
   }
 }
-// 取事件台词：自定义池随机 → 内置默认；支持 {greet}/{now}/{date} 及 {min}/{h} 等附加变量
+// 取事件台词：用户保存过（含空数组=清空）→ 按用户池（空=不说话）；
+// 从未保存过 → 内置默认（仅作为编辑器里的示例初始值）
 function eventLine(key, vars) {
-  const arr = evtLines[key] || [];
-  let text = arr.length ? pickRandom(arr) : EVENT_DEFAULTS[key] || '';
+  const arr = evtLines[key];
+  let text = Array.isArray(arr) ? (arr.length ? pickRandom(arr) : '') : (EVENT_DEFAULTS[key] || '');
   let line = renderLine(text);
   const pomoDurMap = { pomoStart: pomoDur.focus, pomoBreak: pomoDur.break, pomoLong: pomoDur.long };
   if (pomoDurMap[key] !== undefined && line.includes('{min}')) line = line.split('{min}').join(pomoDurMap[key]);
@@ -103,7 +104,10 @@ const CLICK_CYCLE = [0, 1, 2, 4, 5];
 
 let bubbleTimer = null;
 function showBubble(text) {
-  bubbleText.textContent = text;
+  // 空台词或单个 "-" = 静默：不弹框、不打断当前气泡
+  const t = String(text == null ? '' : text).trim();
+  if (!t || t === '-') return;
+  bubbleText.textContent = t;
   bubble.classList.add('show');
   clearTimeout(bubbleTimer);
   bubbleTimer = setTimeout(() => bubble.classList.remove('show'), 2600);
@@ -335,10 +339,10 @@ function updateAutoState() {
   // 听歌形态最高优先级：实时跟随系统音频（不受手动锁定/冷却/睡觉影响）
   if (state.music && state.autoMode !== 'music') {
     stopWalkNow();
-    // 进入听歌形态：优先用用户配置的台词池（空则用内置兜底句）
+    // 进入听歌形态：台词池有内容才说话（清空 = 安静进入）
     const musicLines = formLines[MUSIC_IDX] || [];
     autoSetForm(MUSIC_IDX,
-      musicLines.length ? renderLine(pickRandom(musicLines)) : '听到音乐了！总是戴着耳机听歌~',
+      musicLines.length ? renderLine(pickRandom(musicLines)) : '',
       'music');
     return;
   }
