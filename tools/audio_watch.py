@@ -7,11 +7,20 @@
 - 状态变化时输出一行 JSON（flush），每 10 秒输出一次心跳
 """
 import sys
+import os
 import json
 import time
 import comtypes
 from pycaw.pycaw import AudioUtilities, IAudioMeterInformation, IMMDeviceEnumerator
 from pycaw.constants import EDataFlow, DEVICE_STATE
+
+
+def emit(obj):
+    """输出一行 JSON；管道断裂（主程序已退出）时安静退出，避免 Errno 22 弹窗。"""
+    try:
+        print(json.dumps(obj), flush=True)
+    except OSError:
+        os._exit(0)
 
 TICK = 0.1          # 采样间隔 100ms
 ON_MS = 500         # 有声判定持续
@@ -77,15 +86,15 @@ def main():
 
         if not music and loud_ms >= ON_MS:
             music = True
-            print(json.dumps({'type': 'state', 'music': True, 'peak': round(peak, 4)}), flush=True)
+            emit({'type': 'state', 'music': True, 'peak': round(peak, 4)})
         elif music and quiet_ms >= OFF_MS:
             music = False
-            print(json.dumps({'type': 'state', 'music': False, 'peak': round(peak, 4)}), flush=True)
+            emit({'type': 'state', 'music': False, 'peak': round(peak, 4)})
 
         if now - last_beat >= HEARTBEAT_SEC:
-            print(json.dumps({'type': 'beat', 'music': music,
-                              'peak10s': round(max_peak, 4),
-                              'devices': len(meters)}), flush=True)
+            emit({'type': 'beat', 'music': music,
+                  'peak10s': round(max_peak, 4),
+                  'devices': len(meters)})
             last_beat = now
             max_peak = 0.0
 
@@ -94,6 +103,12 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except Exception as e:
-        print(json.dumps({'type': 'fatal', 'error': str(e)}), flush=True)
+    except SystemExit:
+        raise
+    except BaseException as e:
+        # 致命错误也走容错输出；任何写入失败都不会抛出（windowed 模式下未处理异常会弹 GUI 错误框）
+        try:
+            emit({'type': 'fatal', 'error': str(e)})
+        except BaseException:
+            pass
         sys.exit(1)

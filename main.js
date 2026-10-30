@@ -613,6 +613,7 @@ let WATCHER = path.join(__dirname, 'tools', 'audio_watch.py');
 })();
 let audioHelper = null;
 let helperStopped = false;
+let helperFails = 0;   // 连续退出次数（收到有效数据即清零），用于重启退避
 
 function startAudioHelper() {
   if (helperStopped) return;
@@ -628,6 +629,7 @@ function startAudioHelper() {
         const line = buf.slice(0, idx).trim();
         buf = buf.slice(idx + 1);
         if (!line) continue;
+        helperFails = 0;  // 助手正常输出过 → 重置退避
         try {
           const msg = JSON.parse(line);
           if (msg.type === 'state' && win) {
@@ -643,7 +645,9 @@ function startAudioHelper() {
       console.log('[helper] 助手退出 code=' + code);
       audioHelper = null;
       if (!helperStopped) {
-        setTimeout(startAudioHelper, 3000);  // 自动重启
+        helperFails++;
+        const delay = Math.min(3000 * helperFails, 60000);  // 退避：3s → 6s → 9s … 上限 60s
+        setTimeout(startAudioHelper, delay);
       }
     });
   } catch (e) {
