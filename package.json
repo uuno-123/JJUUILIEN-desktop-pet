@@ -38,11 +38,13 @@
       "target": ["nsis", "portable"],
       "icon": "build/icon.ico"
     },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "createDesktopShortcut": true,
-      "shortcutName": "Juju桌宠"
-    }
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "啾莉恩桌宠"
+  }
   }
 }
