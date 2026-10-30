@@ -47,6 +47,8 @@
   footer { margin-top: 44px; font-size: 13px; color: #a394b0; }
   footer a { color: #8a6cc0; text-decoration: none; }
   footer a:hover { text-decoration: underline; }
+  .dl-stat { margin-top: 16px; font-size: 11.5px; color: #c3b8cd; letter-spacing: .3px; }
+  .dl-stat b { color: #a394b0; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -89,7 +91,41 @@
     <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/blob/main/README.md">完整使用说明</a> ·
     <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/releases">历史版本</a>
     <br>作者 uuno-123 · Threads <a href="https://www.threads.net/@netis.go">@netis.go</a> · 仅供个人使用，请勿商用
+    <div class="dl-stat" id="dlStat">累计下载 <b id="dlTotal">71</b> 次</div>
   </footer>
 </div>
+<script>
+(function () {
+  var KEY = 'juju_dl_stat_v1', TTL = 3600 * 1000;
+  var num = document.getElementById('dlTotal');
+  function show(n) {
+    if (typeof n !== 'number' || !isFinite(n) || n < 0) return;
+    num.textContent = n.toLocaleString('zh-CN');
+  }
+  var cached = null;
+  try { cached = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  if (cached && typeof cached.total === 'number') {
+    show(cached.total);
+    if (Date.now() - (cached.at || 0) < TTL) return;   // 缓存新鲜，不再请求
+  }
+  try {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 6000);
+    fetch('https://api.github.com/repos/uuno-123/JJUUILIEN-desktop-pet/releases?per_page=100', { signal: ctl.signal })
+      .then(function (r) { clearTimeout(timer); return r.ok ? r.json() : null; })
+      .then(function (rels) {
+        if (!Array.isArray(rels)) return;
+        var total = 0, cnt = 0;
+        rels.forEach(function (rel) {
+          (rel.assets || []).forEach(function (a) { total += a.download_count || 0; cnt++; });
+        });
+        if (!cnt) return;
+        show(total);
+        try { localStorage.setItem(KEY, JSON.stringify({ total: total, at: Date.now() })); } catch (e) {}
+      })
+      .catch(function () {});
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>
