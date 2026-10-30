@@ -263,7 +263,11 @@ function updateAutoState() {
   // 听歌形态最高优先级：实时跟随系统音频（不受手动锁定/冷却/睡觉影响）
   if (state.music && state.autoMode !== 'music') {
     stopWalkNow();
-    autoSetForm(MUSIC_IDX, '听到音乐了！总是戴着耳机听歌~', 'music');
+    // 进入听歌形态：优先用用户配置的台词池（空则用内置兜底句）
+    const musicLines = formLines[MUSIC_IDX] || [];
+    autoSetForm(MUSIC_IDX,
+      musicLines.length ? renderLine(pickRandom(musicLines)) : '听到音乐了！总是戴着耳机听歌~',
+      'music');
     return;
   }
   if (!state.music && state.autoMode === 'music') {
