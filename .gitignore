@@ -2,3 +2,4 @@ node_modules/
 release/
 tools/_build/
 *.blockmap
+dist-out/
