@@ -21,8 +21,11 @@ contextBridge.exposeInMainWorld('petAPI', {
   onPomodoroCmd: (cb) => ipcRenderer.on('pomodoro-cmd', (_e, cmd) => cb(cmd)),
   pomodoroState: (st) => ipcRenderer.send('pomodoro-state', st),
   pomodoroDone: () => ipcRenderer.send('pomodoro-done'),
+  startPomodoro: () => ipcRenderer.send('pomo-start-request'),
+  openLines: () => ipcRenderer.send('open-lines'),
   onShowReminder: (cb) => ipcRenderer.on('show-reminder', (_e, text) => cb(text)),
   getSettings: () => ipcRenderer.sendSync('get-settings'),
+  getDblMs: () => ipcRenderer.sendSync('get-dbl-ms'),
 
   // 待办输入窗
   submitReminder: (text, due) => ipcRenderer.send('reminder-submit', text, due),

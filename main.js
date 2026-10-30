@@ -45,6 +45,7 @@ const defaults = {
   toggles: { audio: true, sleep: true, walk: true, sedentary: true, water: true, hotkey: true },
   reminders: [],         // [{text, due}]
   pomodoro: { focus: 25, break: 5, long: 15 },  // 番茄钟时长（分钟）
+  dblclick: 'pat',       // 双击动作：pat 摸头彩蛋 | pomo 番茄钟 | lines 编辑台词 | none 不响应
   lines: {},             // 每形态自定义台词 { [formIdx]: [台词, ...] }
   eventLines: {},        // 系统事件自定义台词 { [事件key]: [台词, ...] }（空/缺失 = 用内置默认）
   stats: { date: '', tomatoes: 0 }   // 今日番茄统计
@@ -579,7 +580,16 @@ function buildMenu(popup = false) {
         { label: '听歌联动（音乐→戴耳机）', type: 'checkbox', checked: t.audio, click: () => { settings.toggles.audio = !t.audio; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
         { label: '自动睡觉', type: 'checkbox', checked: t.sleep, click: () => { settings.toggles.sleep = !t.sleep; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
         { label: '自行散步', type: 'checkbox', checked: t.walk, click: () => { settings.toggles.walk = !t.walk; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
-        { label: '全局快捷键（Ctrl+Alt+J 召唤/隐藏）', type: 'checkbox', checked: t.hotkey !== false, click: () => { settings.toggles.hotkey = !(t.hotkey !== false); saveSettings(); applyHotkey(); broadcastSettings(); buildTrayMenu(); } }
+        { label: '全局快捷键（Ctrl+Alt+J 召唤/隐藏）', type: 'checkbox', checked: t.hotkey !== false, click: () => { settings.toggles.hotkey = !(t.hotkey !== false); saveSettings(); applyHotkey(); broadcastSettings(); buildTrayMenu(); } },
+        {
+          label: '双击动作',
+          submenu: [
+            { label: '摸头彩蛋', type: 'radio', checked: (settings.dblclick || 'pat') === 'pat', click: () => { settings.dblclick = 'pat'; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
+            { label: '番茄钟', type: 'radio', checked: settings.dblclick === 'pomo', click: () => { settings.dblclick = 'pomo'; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
+            { label: '编辑台词', type: 'radio', checked: settings.dblclick === 'lines', click: () => { settings.dblclick = 'lines'; saveSettings(); broadcastSettings(); buildTrayMenu(); } },
+            { label: '不响应', type: 'radio', checked: settings.dblclick === 'none', click: () => { settings.dblclick = 'none'; saveSettings(); broadcastSettings(); buildTrayMenu(); } }
+          ]
+        }
       ]
     },
     { type: 'separator' },
@@ -598,6 +608,24 @@ function buildTrayMenu() {
 }
 
 ipcMain.on('show-menu', () => { buildMenu(true); });
+
+// 双击判定时长：跟随系统"鼠标双击速度"设置（注册表 DoubleClickSpeed，默认 500ms）
+let dblMs = 500;
+try {
+  const out = require('child_process').execSync(
+    'reg query "HKCU\\Control Panel\\Mouse" /v DoubleClickSpeed',
+    { encoding: 'utf8', windowsHide: true }
+  );
+  const m = out.match(/DoubleClickSpeed\s+REG_SZ\s+(\d+)/i);
+  if (m) dblMs = Math.max(200, Math.min(900, parseInt(m[1], 10)));
+} catch (_) { /* 读不到就用默认 */ }
+ipcMain.on('get-dbl-ms', (e) => { e.returnValue = dblMs; });
+
+// 双击动作：调出番茄钟 / 打开台词编辑器（摸头在渲染进程本地处理）
+ipcMain.on('pomo-start-request', () => {
+  if (win && !pomodoroRunning) win.webContents.send('pomodoro-cmd', 'start');
+});
+ipcMain.on('open-lines', () => openLinesEditor());
 
 // ---------- 托盘 ----------
 function createTray() {

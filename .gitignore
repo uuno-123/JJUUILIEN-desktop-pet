@@ -7,3 +7,6 @@ dist111/
 __pycache__/
 dist-final/
 dist112/
+dist113/
+electron-dist/
+dist112-old/

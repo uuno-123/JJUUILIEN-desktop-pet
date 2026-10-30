@@ -75,8 +75,10 @@ body.music #pet-img {
   100% { transform: translateY(0) scale(1, 1); }
 }
 
-/* ---------- 点击跳动 ---------- */
-.hop #pet-wrap { animation: hop 0.5s ease-out; }
+/* ---------- 点击跳动 ----------
+   动画作用在 #pet-img（视觉本体）而不是 #pet-wrap（点击热区）：
+   跳起时热区不动，第二下点击仍落在原位置 → 双击判定不会被跳跃打断 */
+.hop #pet-img { animation: hop 0.5s ease-out; }
 @keyframes hop {
   0%   { transform: translateY(0); }
   35%  { transform: translateY(-26px) scale(1.03); }

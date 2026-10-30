@@ -204,14 +204,26 @@ window.addEventListener('pointercancel', endDrag);
 // 兜底：窗口失焦（如拖拽中按了 Win 键等）时强制结束拖拽，防卡死
 window.addEventListener('blur', endDrag);
 
+// 双击判定窗口 = 系统"鼠标双击速度"设置（主进程读注册表，默认 500ms）
+const DBL_MS = (() => {
+  try {
+    const v = window.petAPI && window.petAPI.getDblMs && window.petAPI.getDblMs();
+    if (v) return Math.max(200, Math.min(900, v));
+  } catch (_) {}
+  return 500;
+})();
+
 function handleClick() {
-  // 番茄钟进行中：点击显示剩余时间（含已完成轮数），不切换形态
-  if (pomo.running) {
-    const tag = pomo.phase === 'focus' ? '专注中' : (pomo.phase === 'long' ? '长休息中' : '休息中');
-    showBubble(`${tag}，还剩 ${pomoRemainingText()} 쮝（已完成 ${pomo.cycles} 轮）`);
+  // 双击判定：距上次单击在系统双击时限内 → 触发"双击动作"（形态保留第一击已切换的）
+  const now = Date.now();
+  if (now - lastClickAt < DBL_MS) {
+    lastClickAt = 0;
+    doDblAction();
     return;
   }
-  // 点击循环切换形态：跳一下（用户反馈很可爱，保留）
+  lastClickAt = now;
+  // 单击：立即切换形态，跳一下（用户反馈很可爱，保留）
+  // 番茄钟运行中照常切换，气泡在 onSetForm 里改为显示剩余时间
   const pos = CLICK_CYCLE.indexOf(currentIdx);
   const next = CLICK_CYCLE[(pos + 1) % CLICK_CYCLE.length];
   document.body.classList.remove('hop');
@@ -220,10 +232,23 @@ function handleClick() {
   if (window.petAPI) window.petAPI.selectForm(next);
 }
 
-// 双击 = 摸头彩蛋
-petWrap.addEventListener('dblclick', () => {
-  showBubble(eventLine('pat'));
-});
+// 双击动作（右键菜单 → 功能开关 → 双击动作 可配置）
+let dblAct = 'pat';
+let lastClickAt = 0;   // 上一次单击时间，用于双击判定
+function doDblAction() {
+  if (dblAct === 'pat') {
+    // 摸头彩蛋：跳一下 + 摸头台词
+    document.body.classList.remove('hop');
+    void document.body.offsetWidth;
+    document.body.classList.add('hop');
+    showBubble(eventLine('pat'));
+  } else if (dblAct === 'pomo') {
+    if (window.petAPI && window.petAPI.startPomodoro) window.petAPI.startPomodoro();
+  } else if (dblAct === 'lines') {
+    if (window.petAPI && window.petAPI.openLines) window.petAPI.openLines();
+  }
+  // 'none'：不响应
+}
 
 // 右键菜单
 petWrap.addEventListener('contextmenu', (e) => {
@@ -236,9 +261,15 @@ if (window.petAPI) {
   window.petAPI.onSetForm((idx) => {
     if (idx < 0 || idx >= FORM_FILES.length) return;
     setFormVisual(idx);
-    // 该形态配置了台词则随机抽一条（删空则不说话），支持 {greet}/{now}/{date} 变量
-    const arr = formLines[idx] || [];
-    if (arr.length) showBubble(renderLine(pickRandom(arr)));
+    // 番茄钟运行中：气泡显示剩余时间（形态照常切换）
+    if (pomo.running) {
+      const tag = pomo.phase === 'focus' ? '专注中' : (pomo.phase === 'long' ? '长休息中' : '休息中');
+      showBubble(`${tag}，还剩 ${pomoRemainingText()} 쮝（已完成 ${pomo.cycles} 轮）`);
+    } else {
+      // 该形态配置了台词则随机抽一条（删空则不说话），支持 {greet}/{now}/{date} 变量
+      const arr = formLines[idx] || [];
+      if (arr.length) showBubble(renderLine(pickRandom(arr)));
+    }
     // 手动选择 → 锁定 10 分钟，期间暂停自动切换（音频联动除外，结束后恢复）
     state.manualUntil = Date.now() + 10 * 60 * 1000;
     state.manualIdx = idx;
@@ -317,6 +348,8 @@ function updateAutoState() {
       setFormVisual(state.manualIdx);
       document.body.classList.remove('sleeping', 'music');
       state.autoMode = 'manual';
+      // 手动锁定期内恢复手选形态，也要说"音乐停了"（之前静默恢复导致该台词无法触发）
+      showBubble(eventLine('musicStop'));
     } else {
       // 音乐结束回到待机：事件台词（可自定义）
       autoSetForm(0, eventLine('musicStop'), 'idle');
@@ -399,6 +432,7 @@ if (window.petAPI) {
     scaleMul = [80, 110, 160][s.scaleIdx] / 110;
     T = Object.assign({}, T, s.toggles || {});
     if (s.pomodoro) pomoDur = Object.assign({}, pomoDur, s.pomodoro);
+    if (['pat', 'pomo', 'lines', 'none'].includes(s.dblclick)) dblAct = s.dblclick;
     applyLinesSetting(s.lines);
     applyEventLinesSetting(s.eventLines);
     applyToggles();
@@ -410,6 +444,7 @@ if (window.petAPI) {
     scaleMul = [80, 110, 160][s0.scaleIdx] / 110;
     T = Object.assign({}, T, s0.toggles || {});
     if (s0.pomodoro) pomoDur = Object.assign({}, pomoDur, s0.pomodoro);
+    if (['pat', 'pomo', 'lines', 'none'].includes(s0.dblclick)) dblAct = s0.dblclick;
     applyLinesSetting(s0.lines);
     applyEventLinesSetting(s0.eventLines);
     applyFormWidth(currentIdx);
