@@ -277,7 +277,9 @@ function updateAutoState() {
       document.body.classList.remove('sleeping', 'music');
       state.autoMode = 'manual';
     } else {
-      autoSetForm(0, '音乐停了… 쮝', 'idle');
+      // 音乐结束回到待机：优先用待机形态的台词池（空则用内置兜底句）
+      const idleLines = formLines[0] || [];
+      autoSetForm(0, idleLines.length ? renderLine(pickRandom(idleLines)) : '音乐停了… 쮝', 'idle');
     }
     return;
   }
