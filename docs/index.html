@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>啾莉恩桌宠 · 免费下载</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(160deg, #f6f1fb 0%, #fdf6f0 100%);
+    color: #4a3f52;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 20px 64px; text-align: center; }
+  .mascot { width: 200px; filter: drop-shadow(0 12px 24px rgba(150,110,200,.25)); animation: float 3.2s ease-in-out infinite; }
+  @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  h1 { font-size: 34px; margin: 12px 0 6px; color: #6b4fa0; }
+  .sub { font-size: 15px; color: #8a7a99; margin-bottom: 28px; }
+  .badge {
+    display: inline-block; background: #efe6fa; color: #7a5cb0;
+    border-radius: 999px; padding: 5px 14px; font-size: 13px; margin: 0 4px 4px;
+  }
+  .downloads {
+    display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 34px 0 14px;
+  }
+  .btn {
+    display: block; width: 300px; padding: 16px 20px; border-radius: 16px;
+    text-decoration: none; transition: transform .15s, box-shadow .15s;
+  }
+  .btn:hover { transform: translateY(-3px); }
+  .btn .t { font-size: 17px; font-weight: bold; }
+  .btn .d { font-size: 12.5px; opacity: .85; margin-top: 4px; }
+  .btn-primary { background: linear-gradient(135deg, #9a6fd8, #7a55c0); color: #fff; box-shadow: 0 10px 24px rgba(130,90,200,.35); }
+  .btn-second  { background: #fff; color: #6b4fa0; border: 2px solid #d9c8f0; }
+  .note { font-size: 12.5px; color: #a394b0; margin-bottom: 34px; }
+  .features {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px; text-align: left;
+  }
+  .card {
+    background: rgba(255,255,255,.85); border-radius: 14px; padding: 16px 18px;
+    box-shadow: 0 4px 14px rgba(120,90,170,.08);
+  }
+  .card b { color: #6b4fa0; }
+  .card p { font-size: 13px; color: #7d6f8a; margin-top: 4px; line-height: 1.55; }
+  footer { margin-top: 44px; font-size: 13px; color: #a394b0; }
+  footer a { color: #8a6cc0; text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="mascot" src="mascot.png" alt="啾莉恩">
+  <h1>啾莉恩桌宠</h1>
+  <div class="sub">一只住在 Windows 桌面上的紫色小猫，陪你专注、提醒你喝水 · 完全免费 &amp; 本地运行</div>
+
+  <div>
+    <span class="badge">🎧 听歌自动戴耳机</span>
+    <span class="badge">⏱ 番茄钟</span>
+    <span class="badge">💬 台词自定义</span>
+    <span class="badge">⏰ 久坐 / 喝水提醒</span>
+    <span class="badge">🚫 无广告 · 无联网上报</span>
+  </div>
+
+  <div class="downloads">
+    <a class="btn btn-primary" href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/releases/latest/download/Juju%E6%A1%8C%E5%AE%A0%20Setup%201.1.0.exe">
+      <div class="t">⬇️ 下载安装版（推荐）</div>
+      <div class="d">Windows 10 / 11 · 64 位 · 约 93 MB</div>
+    </a>
+    <a class="btn btn-second" href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/releases/latest/download/Juju%E6%A1%8C%E5%AE%A0%201.1.0.exe">
+      <div class="t">⬇️ 下载便携版</div>
+      <div class="d">免安装，解压即用 · 约 86 MB</div>
+    </a>
+  </div>
+  <div class="note">下载后双击即可安装；如果浏览器或杀毒软件提示，选择「保留 / 信任」即可（开源可查，无任何捆绑）</div>
+
+  <div class="features">
+    <div class="card"><b>🐱 6 种形态</b><p>待机、站立、抱抱、听歌、生日、微笑，点一下就换，还有可爱的跳跃动画</p></div>
+    <div class="card"><b>🎧 听歌联动</b><p>电脑播放任何声音时自动戴上耳机，0.5 秒内响应，蓝牙耳机也可以</p></div>
+    <div class="card"><b>⏱ 番茄钟</b><p>专注 / 短休息 / 长休息时长随便设，点一下小猫就能看剩余时间</p></div>
+    <div class="card"><b>💬 台词自己写</b><p>每个形态 10 条台词位，支持「早上好 / 现在几点 / 今天日期」变量</p></div>
+    <div class="card"><b>⏰ 贴心提醒</b><p>久坐 45 分钟喊你起来动一动，到点提醒喝水，还能添加待办</p></div>
+    <div class="card"><b>🖥 桌面原住民</b><p>拖拽甩出去会滑行、会贴边、能把半个身子探出屏幕，Ctrl+Alt+J 一键召唤</p></div>
+  </div>
+
+  <footer>
+    <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet">GitHub 开源仓库</a> ·
+    <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/blob/main/README.md">完整使用说明</a> ·
+    <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/releases">历史版本</a>
+    <br>作者 uuno-123 · Threads <a href="https://www.threads.net/@netis.go">@netis.go</a> · 仅供个人使用，请勿商用
+  </footer>
+</div>
+</body>
+</html>
