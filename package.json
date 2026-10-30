@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "description": "Juju 桌宠 - 紫色小猫 desktop pet",
   "main": "main.js",
-  "author": "lx",
+  "author": "uuno-123",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder --win"
