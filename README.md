@@ -1,5 +1,7 @@
 # Juju 桌宠 🐱
 
+<p align="center"><img src="assets/juju-idle.png" width="180" alt="Juju 桌宠"></p>
+
 一只住在 Windows 桌面上的紫色小猫（ISFJ，头顶戴着耳机听歌）。完全本地运行、无任何网络上报，支持番茄钟、台词自定义、待办提醒、听歌联动等全套功能。
 
 > 形象来源于 Juju 原创角色设定，仅供个人使用，请勿商用。
