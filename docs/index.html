@@ -91,12 +91,12 @@
     <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/blob/main/README.md">完整使用说明</a> ·
     <a href="https://github.com/uuno-123/JJUUILIEN-desktop-pet/releases">历史版本</a>
     <br>作者 uuno-123 · Threads <a href="https://www.threads.net/@netis.go">@netis.go</a> · 仅供个人使用，请勿商用
-    <div class="dl-stat" id="dlStat">累计下载 <b id="dlTotal">71</b> 次</div>
+    <div class="dl-stat" id="dlStat">累计下载 <b id="dlTotal">83</b> 次</div>
   </footer>
 </div>
 <script>
 (function () {
-  var KEY = 'juju_dl_stat_v1', TTL = 3600 * 1000;
+  var KEY = 'juju_dl_stat_v2', TTL = 5 * 60 * 1000;   // 5 分钟内复用缓存，兼顾实时与限流
   var num = document.getElementById('dlTotal');
   function show(n) {
     if (typeof n !== 'number' || !isFinite(n) || n < 0) return;
