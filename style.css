@@ -1,0 +1,131 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+  font-family: "Microsoft YaHei", sans-serif;
+}
+
+/* 宠物容器：居中贴底，等比缩放 */
+#pet-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 100px; /* 由 pet.js 按形态动态设置 */
+  margin-left: -50px;
+  transform-origin: center bottom;
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+#pet-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+/* ---------- 听歌：跟着音乐摇摆 ---------- */
+body.music #pet-img {
+  animation: sway 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(4deg); }
+}
+
+/* ---------- Zzz 粒子 ---------- */
+.zzz {
+  position: absolute;
+  bottom: 30%;
+  font-size: 15px;
+  font-weight: bold;
+  color: #8a6fa8;
+  animation: zfloat 3s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes zfloat {
+  0%   { opacity: 0; transform: translateY(0) scale(0.7); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-55px) scale(1.25) translateX(10px); }
+}
+
+/* ---------- 待机呼吸 ---------- */
+@keyframes breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-5px) scale(1.012); }
+}
+
+/* ---------- 拖拽中被拎起 ---------- */
+.drag #pet-wrap {
+  animation: none;
+  transform: translateY(-4px) scale(1.05) rotate(-3deg);
+}
+
+/* ---------- 落地回弹 ---------- */
+.drop #pet-wrap { animation: drop 0.45s cubic-bezier(0.3, 1.6, 0.5, 1); }
+@keyframes drop {
+  0%   { transform: translateY(-14px) scale(1.08, 0.92); }
+  60%  { transform: translateY(0) scale(0.94, 1.06); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+
+/* ---------- 点击跳动 ---------- */
+.hop #pet-wrap { animation: hop 0.5s ease-out; }
+@keyframes hop {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(-26px) scale(1.03); }
+  65%  { transform: translateY(0) scale(0.97, 1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+/* ---------- 台词气泡（悬在头左上方，尾巴指向头） ---------- */
+#bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);   /* 悬在头顶上方 */
+  left: 50%;
+  transform: translateX(-65%) scale(0);   /* 中心偏左，气泡主体伸向头左上方 */
+  transform-origin: center bottom;
+  max-width: min(280px, 94vw);
+  min-width: 140px;            /* 短台词也撑到统一宽度 */
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 2px solid #6b5b4f;
+  border-radius: 12px;
+  color: #6b5b4f;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  transition: transform 0.22s cubic-bezier(0.3, 1.8, 0.5, 1), opacity 0.18s;
+  pointer-events: none;
+  z-index: 10;
+}
+#bubble.show {
+  transform: translateX(-65%) scale(1);
+  opacity: 1;
+}
+#bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -12px;
+  left: 70%;                   /* 尾巴在气泡右下，指向头部 */
+  margin-left: -8px;
+  border: 8px solid transparent;
+  border-top-color: #6b5b4f;
+}
+
+/* ---------- 自行散步：原地小碎步上下颠动 ---------- */
+body.walking #pet-wrap {
+  animation: walk-bob 0.55s ease-in-out infinite;
+}
+@keyframes walk-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}

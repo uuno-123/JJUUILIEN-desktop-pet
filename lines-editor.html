@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>编辑台词</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: #fff8f2;
+    color: #6b5b4f;
+    padding: 14px;
+    user-select: none;
+  }
+  h3 { font-size: 14px; margin-bottom: 2px; }
+  .hint { font-size: 11px; color: #a89888; margin-bottom: 8px; line-height: 1.5; }
+  #fields { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+  label { display: block; font-size: 12px; font-weight: bold; margin: 6px 0 3px; }
+  textarea {
+    width: 100%;
+    padding: 5px 8px;
+    border: 2px solid #d8c8bd;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #6b5b4f;
+    background: #fff;
+    outline: none;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  textarea:focus { border-color: #a98fd0; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  button {
+    flex: 1;
+    padding: 7px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #ok { background: #a98fd0; color: #fff; }
+  #cancel { background: #e8ddd5; color: #6b5b4f; }
+</style>
+</head>
+<body>
+  <h3>쮝! 编辑台词</h3>
+  <div class="hint">每行一条台词（每个形态最多 10 条、每条 60 字）。<br>可用变量：{greet} 时段问候、{now} 当前时间、{date} 日期。<br>全部删空 = 切到该形态时不说话。</div>
+  <div id="fields"></div>
+  <div class="row">
+    <button id="cancel">取消</button>
+    <button id="ok">保存</button>
+  </div>
+  <script>
+    const FORM_LABELS = ['待机', '站立', '抱抱', '听歌（音乐联动）', '生日', '微笑'];
+    const MAX_LINES = 10;
+    const fields = document.getElementById('fields');
+
+    // 读取当前台词（缺失的形态由主进程加载时已补默认值）
+    let saved = {};
+    try {
+      const s = window.petAPI.getSettings();
+      if (s && s.lines) saved = s.lines;
+    } catch (_) {}
+
+    const boxes = FORM_LABELS.map((label, i) => {
+      const lab = document.createElement('label');
+      lab.textContent = label;
+      const ta = document.createElement('textarea');
+      ta.rows = 2;
+      ta.value = Array.isArray(saved[i]) ? saved[i].join('\n') : '';
+      fields.appendChild(lab);
+      fields.appendChild(ta);
+      return ta;
+    });
+
+    document.getElementById('ok').addEventListener('click', () => {
+      const lines = boxes.map((ta) => ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES));
+      window.petAPI.submitLines(lines);
+    });
+    document.getElementById('cancel').addEventListener('click', () => window.petAPI.cancelLines());
+  </script>
+</body>
+</html>
