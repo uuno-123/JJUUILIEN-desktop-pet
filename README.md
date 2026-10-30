@@ -185,7 +185,7 @@ NSIS 打包的未签名应用可能被误报，加入信任即可；便携版同
 
 ## 👤 作者
 
-**uuno-123** · GitHub：[@uuno-123](https://github.com/uuno-123)
+**uuno-123** · GitHub：[@uuno-123](https://github.com/uuno-123) · Threads：[@netis.go](https://www.threads.net/@netis.go)
 
 如果这只小猫也陪你度过了一些专注的下午，欢迎在仓库点一个 ⭐ Star，或提 Issue 说一句「쮝」。
 
