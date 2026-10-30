@@ -30,6 +30,26 @@
     line-height: 1.5;
   }
   textarea:focus { border-color: #a98fd0; }
+  textarea.empty { border-style: dashed; }
+  details {
+    border: 2px solid #e8ddd5;
+    border-radius: 8px;
+    margin-top: 8px;
+    background: #fffdf9;
+    overflow: hidden;
+  }
+  summary {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #8a7466;
+    background: #f7efe7;
+    list-style: none;
+  }
+  summary::before { content: '▸ '; }
+  details[open] summary::before { content: '▾ '; }
+  .ev-body { padding: 4px 10px 8px; }
   .row { display: flex; gap: 8px; margin-top: 12px; }
   button {
     flex: 1;
@@ -46,7 +66,11 @@
 </head>
 <body>
   <h3>쮝! 编辑台词</h3>
-  <div class="hint">每行一条台词（每个形态最多 10 条、每条 60 字）。<br>可用变量：{greet} 时段问候、{now} 当前时间、{date} 日期。<br>全部删空 = 切到该形态时不说话。</div>
+  <div class="hint">
+    每行一条台词，切换时随机抽一条（每项最多 10 条、每条 60 字）。<br>
+    形态台词全部删空 = 切到该形态时不说话；<b>事件台词留空 = 使用下方灰色示例的内置默认</b>。<br>
+    可用变量：{greet} 时段问候、{now} 当前时间、{date} 日期、{min} 番茄分钟数、{h} 整点小时。
+  </div>
   <div id="fields"></div>
   <div class="row">
     <button id="cancel">取消</button>
@@ -55,29 +79,94 @@
   <script>
     const FORM_LABELS = ['待机', '站立', '抱抱', '听歌（音乐联动）', '生日', '微笑'];
     const MAX_LINES = 10;
+
+    // 事件台词定义：[key, 显示名, 内置默认（占位提示）, 额外变量说明]
+    const EVENT_GROUPS = [
+      { name: '互动与状态', items: [
+        ['pat', '双击摸头', '摸头杀… 쮝쮝（开心）'],
+        ['musicStop', '音乐结束（回到待机）', '音乐停了… 쮝'],
+        ['sleep', '睡着了', 'Zzz…（Juju 睡着了）'],
+        ['wake', '睡醒', '쮝!（揉眼睛醒来）']
+      ]},
+      { name: '生活提醒', items: [
+        ['sedentary', '久坐提醒', '已经坐了 45 分钟啦！站起来动一动 쮝쮝'],
+        ['water', '喝水提醒', '该喝水啦！쮝（推来一杯水）'],
+        ['batteryOff', '电源断开', '没插电源… 쮝（记得充电）'],
+        ['batteryOn', '接通电源', '充上电啦！쮝쮝'],
+        ['netOffline', '断网了', '断网了… 쮝（世界安静了）'],
+        ['netOnline', '网络恢复', '网回来啦！쮝쮝']
+      ]},
+      { name: '番茄钟', items: [
+        ['pomoStart', '开始专注', '开始专注！{min} 分钟 쮝（我会安静陪着你的）'],
+        ['pomoBreak', '短休息开始', '专注结束！休息 {min} 分钟～쮝'],
+        ['pomoLong', '长休息开始', '完成 4 轮！大休息 {min} 分钟，最棒了！쮝쮝'],
+        ['pomoResume', '休息结束继续专注', '休息结束！新一轮专注开始 쮝쮝'],
+        ['pomoStop', '手动停止番茄钟', '番茄钟停止了 쮝（下次再来）'],
+        ['pomoWarn1', '还剩 1 分钟', '还剩 1 分钟～쮝'],
+        ['pomoWarn10', '还剩 10 秒', '还剩 10 秒！쮝쮝']
+      ]},
+      { name: '整点报时', items: [
+        ['hourly', '整点报时（{h}=小时）', '쮝！{h} 点整啦~']
+      ]}
+    ];
+
     const fields = document.getElementById('fields');
 
-    // 读取当前台词（缺失的形态由主进程加载时已补默认值）
-    let saved = {};
+    // 读取当前设置
+    let savedForms = {};
+    let savedEvents = {};
     try {
       const s = window.petAPI.getSettings();
-      if (s && s.lines) saved = s.lines;
+      if (s && s.lines) savedForms = s.lines;
+      if (s && s.eventLines) savedEvents = s.eventLines;
     } catch (_) {}
 
-    const boxes = FORM_LABELS.map((label, i) => {
+    // 形态台词
+    const formBoxes = FORM_LABELS.map((label, i) => {
       const lab = document.createElement('label');
       lab.textContent = label;
       const ta = document.createElement('textarea');
       ta.rows = 2;
-      ta.value = Array.isArray(saved[i]) ? saved[i].join('\n') : '';
+      ta.value = Array.isArray(savedForms[i]) ? savedForms[i].join('\n') : '';
       fields.appendChild(lab);
       fields.appendChild(ta);
       return ta;
     });
 
+    // 事件台词（分组折叠）
+    const eventBoxes = {};
+    for (const g of EVENT_GROUPS) {
+      const det = document.createElement('details');
+      const sum = document.createElement('summary');
+      sum.textContent = g.name;
+      det.appendChild(sum);
+      const body = document.createElement('div');
+      body.className = 'ev-body';
+      for (const [key, label, def] of g.items) {
+        const lab = document.createElement('label');
+        lab.textContent = label + '（默认：' + def + '）';
+        const ta = document.createElement('textarea');
+        ta.rows = 2;
+        const saved = Array.isArray(savedEvents[key]) ? savedEvents[key].join('\n') : '';
+        ta.value = saved;
+        if (!saved) ta.classList.add('empty');   // 空的用虚线框示意"走默认"
+        ta.addEventListener('input', () => ta.classList.toggle('empty', !ta.value.trim()));
+        body.appendChild(lab);
+        body.appendChild(ta);
+        eventBoxes[key] = ta;
+      }
+      det.appendChild(body);
+      fields.appendChild(det);
+    }
+
     document.getElementById('ok').addEventListener('click', () => {
-      const lines = boxes.map((ta) => ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES));
-      window.petAPI.submitLines(lines);
+      const lines = formBoxes.map((ta) => ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES));
+      const events = {};
+      for (const [key, ta] of Object.entries(eventBoxes)) {
+        const arr = ta.value.split('\n').map((s) => s.trim()).filter(Boolean).slice(0, MAX_LINES);
+        if (arr.length) events[key] = arr;   // 留空 = 恢复内置默认
+      }
+      window.petAPI.submitLines(lines, events);
     });
     document.getElementById('cancel').addEventListener('click', () => window.petAPI.cancelLines());
   </script>

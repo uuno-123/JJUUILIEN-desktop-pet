@@ -46,6 +46,7 @@ const defaults = {
   reminders: [],         // [{text, due}]
   pomodoro: { focus: 25, break: 5, long: 15 },  // 番茄钟时长（分钟）
   lines: {},             // 每形态自定义台词 { [formIdx]: [台词, ...] }
+  eventLines: {},        // 系统事件自定义台词 { [事件key]: [台词, ...] }（空/缺失 = 用内置默认）
   stats: { date: '', tomatoes: 0 }   // 今日番茄统计
 };
 let settings = JSON.parse(JSON.stringify(defaults));
@@ -451,9 +452,18 @@ function openLinesEditor() {
   linesWin.loadFile('lines-editor.html');
   linesWin.on('closed', () => { linesWin = null; });
 }
-ipcMain.on('lines-submit', (_e, lines) => {
+ipcMain.on('lines-submit', (_e, lines, eventLines) => {
   if (linesWin) linesWin.close();
-  if (!lines || typeof lines !== 'object') return;
+  const cleanEvent = {};
+  if (eventLines && typeof eventLines === 'object') {
+    for (const k of Object.keys(eventLines)) {
+      const arr = Array.isArray(eventLines[k]) ? eventLines[k] : [];
+      const c = arr.map((s) => String(s).trim().slice(0, LINES_LEN)).filter(Boolean).slice(0, LINES_MAX);
+      if (c.length) cleanEvent[k] = c;   // 空 = 用内置默认台词
+    }
+  }
+  settings.eventLines = cleanEvent;
+  if (!lines || typeof lines !== 'object') { saveSettings(); broadcastSettings(); return; }
   const clean = {};
   for (let i = 0; i < FORMS.length; i++) {
     const arr = Array.isArray(lines[i]) ? lines[i] : [];

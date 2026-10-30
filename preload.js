@@ -33,6 +33,6 @@ contextBridge.exposeInMainWorld('petAPI', {
   cancelPomoInput: () => ipcRenderer.send('pomo-input-cancel'),
 
   // 台词编辑窗
-  submitLines: (lines) => ipcRenderer.send('lines-submit', lines),
+  submitLines: (lines, eventLines) => ipcRenderer.send('lines-submit', lines, eventLines),
   cancelLines: () => ipcRenderer.send('lines-cancel')
 });

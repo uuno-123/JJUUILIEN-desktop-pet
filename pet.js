@@ -26,6 +26,47 @@ function applyLinesSetting(lines) {
   formLines = FORM_LINES.map((d, i) => Array.isArray(lines && lines[i]) ? lines[i] : [d]);
 }
 
+// 系统事件台词（用户在编辑器里可自定义；空/缺失 = 用内置默认）
+const EVENT_DEFAULTS = {
+  pat: '摸头杀… 쮝쮝（开心）',
+  musicStop: '音乐停了… 쮝',
+  sleep: 'Zzz…（Juju 睡着了）',
+  wake: '쮝!（揉眼睛醒来）',
+  sedentary: '已经坐了 45 分钟啦！站起来动一动 쮝쮝',
+  water: '该喝水啦！쮝（推来一杯水）',
+  batteryOff: '没插电源… 쮝（记得充电）',
+  batteryOn: '充上电啦！쮝쮝',
+  netOffline: '断网了… 쮝（世界安静了）',
+  netOnline: '网回来啦！쮝쮝',
+  pomoStart: '开始专注！{min} 分钟 쮝（我会安静陪着你的）',
+  pomoBreak: '专注结束！休息 {min} 分钟～쮝',
+  pomoLong: '完成 4 轮！大休息 {min} 分钟，最棒了！쮝쮝',
+  pomoResume: '休息结束！新一轮专注开始 쮝',
+  pomoStop: '番茄钟停止了 쮝（下次再来）',
+  pomoWarn1: '还剩 1 分钟～쮝',
+  pomoWarn10: '还剩 10 秒！쮝쮝',
+  hourly: '쮝！{h} 点整啦~'
+};
+let evtLines = {};   // { key: [自定义台词] }
+function applyEventLinesSetting(ev) {
+  evtLines = {};
+  if (ev && typeof ev === 'object') {
+    for (const k of Object.keys(EVENT_DEFAULTS)) {
+      if (Array.isArray(ev[k])) evtLines[k] = ev[k];
+    }
+  }
+}
+// 取事件台词：自定义池随机 → 内置默认；支持 {greet}/{now}/{date} 及 {min}/{h} 等附加变量
+function eventLine(key, vars) {
+  const arr = evtLines[key] || [];
+  let text = arr.length ? pickRandom(arr) : EVENT_DEFAULTS[key] || '';
+  let line = renderLine(text);
+  const pomoDurMap = { pomoStart: pomoDur.focus, pomoBreak: pomoDur.break, pomoLong: pomoDur.long };
+  if (pomoDurMap[key] !== undefined && line.includes('{min}')) line = line.split('{min}').join(pomoDurMap[key]);
+  if (vars) for (const k of Object.keys(vars)) line = line.split(`{${k}}`).join(String(vars[k]));
+  return line;
+}
+
 // 每个形态的显示宽度（px）：按"猫身体视觉宽度一致"校准
 // （听歌音符占宽多故整体更宽，抱抱/生日画面撑满故略缩）
 const FORM_WIDTHS = [100, 96, 88, 124, 84, 96];
@@ -181,7 +222,7 @@ function handleClick() {
 
 // 双击 = 摸头彩蛋
 petWrap.addEventListener('dblclick', () => {
-  showBubble('摸头杀… 쮝쮝（开心）');
+  showBubble(eventLine('pat'));
 });
 
 // 右键菜单
@@ -277,9 +318,8 @@ function updateAutoState() {
       document.body.classList.remove('sleeping', 'music');
       state.autoMode = 'manual';
     } else {
-      // 音乐结束回到待机：优先用待机形态的台词池（空则用内置兜底句）
-      const idleLines = formLines[0] || [];
-      autoSetForm(0, idleLines.length ? renderLine(pickRandom(idleLines)) : '音乐停了… 쮝', 'idle');
+      // 音乐结束回到待机：事件台词（可自定义）
+      autoSetForm(0, eventLine('musicStop'), 'idle');
     }
     return;
   }
@@ -292,7 +332,7 @@ function updateAutoState() {
   if (T.sleep && state.idleSec >= IDLE_SLEEP_SEC) {
     if (state.autoMode !== 'sleep') {
       stopWalkNow();
-      autoSetForm(0, 'Zzz…（Juju 睡着了）', 'sleep');
+      autoSetForm(0, eventLine('sleep'), 'sleep');
     }
     return;
   }
@@ -305,7 +345,7 @@ function updateAutoState() {
   if (state.autoMode === 'sleep') {
     state.autoMode = 'idle';
     document.body.classList.remove('sleeping');
-    showBubble('쮝!（揉眼睛醒来）');
+    showBubble(eventLine('wake'));
     state.lastSwitch = now;
     return;
   }
@@ -343,7 +383,7 @@ if (window.petAPI) {
     else if (sec >= 300) activeMs = 0;
   });
   window.petAPI.onEnvPower((onBattery) => {
-    showBubble(onBattery ? '没插电源… 쮝（记得充电）' : '充上电啦！쮝쮝');
+    showBubble(eventLine(onBattery ? 'batteryOff' : 'batteryOn'));
   });
   // 原生音频助手：任何输出设备出声/静音（带 0.5s 滞回，主进程判定）
   window.petAPI.onHelperAudio((data) => {
@@ -360,6 +400,7 @@ if (window.petAPI) {
     T = Object.assign({}, T, s.toggles || {});
     if (s.pomodoro) pomoDur = Object.assign({}, pomoDur, s.pomodoro);
     applyLinesSetting(s.lines);
+    applyEventLinesSetting(s.eventLines);
     applyToggles();
     applyFormWidth(currentIdx);
   });
@@ -370,6 +411,7 @@ if (window.petAPI) {
     T = Object.assign({}, T, s0.toggles || {});
     if (s0.pomodoro) pomoDur = Object.assign({}, pomoDur, s0.pomodoro);
     applyLinesSetting(s0.lines);
+    applyEventLinesSetting(s0.eventLines);
     applyFormWidth(currentIdx);
   }
   window.petAPI.onSetScale((idx) => {
@@ -382,7 +424,7 @@ if (window.petAPI) {
     if (!T.sedentary) { activeMs = 0; return; }
     if (activeMs >= 45 * 60 * 1000) {
       activeMs = 0;
-      showBubble('已经坐了 45 分钟啦！站起来动一动 쮝쮝');
+      showBubble(eventLine('sedentary'));
       document.body.classList.remove('hop');
       void document.body.offsetWidth;
       document.body.classList.add('hop');
@@ -394,21 +436,16 @@ if (window.petAPI) {
     if (!T.water) return;
     if (Date.now() - lastWaterAt >= 45 * 60 * 1000 && state.idleSec < 120) {
       lastWaterAt = Date.now();
-      showBubble('该喝水啦！쮝（推来一杯水）');
+      showBubble(eventLine('water'));
     }
   }, 60 * 1000);
 
   // ---------- 番茄钟（pomo / pomoDur 已在顶层声明，点击台词需要读取） ----------
-  const POMO_LINE = {
-    focus: () => `开始专注！${pomoDur.focus} 分钟 쮝（我会安静陪着你的）`,
-    break: () => `专注结束！休息 ${pomoDur.break} 分钟～쮝`,
-    long: () => `完成 4 轮！大休息 ${pomoDur.long} 分钟，最棒了！쮝쮝`
-  };
   function pomoStop(silent) {
     pomo.running = false;
     pomo.phase = null;
     window.petAPI.pomodoroState({ running: false });
-    if (!silent) showBubble('番茄钟停止了 쮝（下次再来）');
+    if (!silent) showBubble(eventLine('pomoStop'));
   }
   window.petAPI.onPomodoroCmd((cmd) => {
     if (cmd === 'start' && !pomo.running) {
@@ -418,7 +455,7 @@ if (window.petAPI) {
       pomo.endsAt = Date.now() + pomoDur.focus * 60 * 1000;
       pomo.warned1 = pomo.warned10 = false;
       window.petAPI.pomodoroState({ running: true });
-      showBubble(POMO_LINE.focus());
+      showBubble(eventLine('pomoStart'));
     } else if (cmd === 'stop') {
       pomoStop(false);
     }
@@ -433,7 +470,7 @@ if (window.petAPI) {
         const long = pomo.cycles % 4 === 0;
         pomo.phase = long ? 'long' : 'break';
         pomo.endsAt = Date.now() + (long ? pomoDur.long : pomoDur.break) * 60 * 1000;
-        showBubble(long ? POMO_LINE.long() : POMO_LINE.break());
+        showBubble(eventLine(long ? 'pomoLong' : 'pomoBreak'));
         document.body.classList.remove('hop');
         void document.body.offsetWidth;
         document.body.classList.add('hop');
@@ -441,17 +478,17 @@ if (window.petAPI) {
         pomo.phase = 'focus';
         pomo.endsAt = Date.now() + pomoDur.focus * 60 * 1000;
         pomo.warned1 = pomo.warned10 = false;
-        showBubble('休息结束！新一轮专注开始 쮝쮝');
+        showBubble(eventLine('pomoResume'));
       }
       pomo.warned1 = pomo.warned10 = false;
       return;
     }
     if (remain <= 10 * 1000 && !pomo.warned10) {
       pomo.warned10 = true;
-      showBubble('还剩 10 秒！쮝쮝');
+      showBubble(eventLine('pomoWarn10'));
     } else if (remain <= 60 * 1000 && !pomo.warned1) {
       pomo.warned1 = true;
-      showBubble('还剩 1 分钟～쮝');
+      showBubble(eventLine('pomoWarn1'));
     }
   }, 1000);
 
@@ -471,7 +508,7 @@ setInterval(() => {
   if (h !== lastHour) {
     lastHour = h;
     if (!document.body.classList.contains('sleeping')) {
-      showBubble(`쮝！${h} 点整啦~`);
+      showBubble(eventLine('hourly', { h }));
     }
   }
 }, 30 * 1000);
@@ -587,8 +624,8 @@ if (ENABLE_AUDIO) {
 }
 
 // ---------- 网络状态 ----------
-window.addEventListener('offline', () => showBubble('断网了… 쮝（世界安静了）'));
-window.addEventListener('online', () => showBubble('网回来啦！쮝쮝'));
+window.addEventListener('offline', () => showBubble(eventLine('netOffline')));
+window.addEventListener('online', () => showBubble(eventLine('netOnline')));
 
 // ---------- 睡觉 Zzz 粒子 ----------
 setInterval(() => {
