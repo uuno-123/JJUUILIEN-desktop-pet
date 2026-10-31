@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>单击轮换形态</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Microsoft YaHei", sans-serif;
+    background: #fff8f2;
+    color: #6b5b4f;
+    padding: 14px;
+    user-select: none;
+    overflow-y: auto;
+  }
+  h3 { font-size: 14px; margin-bottom: 2px; -webkit-app-region: drag; }
+  .hint { font-size: 11px; color: #a89888; margin: 6px 0 10px; line-height: 1.6; }
+  #list { display: flex; flex-direction: column; gap: 6px; }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 2px solid #e8ddd5;
+    border-radius: 10px;
+    background: #fffdf9;
+    cursor: pointer;
+    transition: border-color .12s, background .12s;
+  }
+  .item:hover { border-color: #d9c7ee; }
+  .item.on { border-color: #a98fd0; background: #f8f2ff; }
+  .thumb {
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    background: #f2e9f8 center/contain no-repeat;
+    flex: none;
+  }
+  .name { flex: 1; font-size: 13px; font-weight: bold; }
+  .name small { display: block; font-size: 10px; font-weight: normal; color: #a89888; margin-top: 1px; }
+  .box {
+    width: 20px; height: 20px;
+    border: 2px solid #d8c8bd;
+    border-radius: 6px;
+    flex: none;
+    position: relative;
+  }
+  .item.on .box { background: #a98fd0; border-color: #a98fd0; }
+  .item.on .box::after {
+    content: '';
+    position: absolute;
+    left: 5px; top: 1px;
+    width: 5px; height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+  #order { font-size: 11px; color: #8a7466; margin-top: 10px; line-height: 1.6; min-height: 32px; }
+  #order b { color: #a98fd0; }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  button {
+    flex: 1;
+    padding: 8px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  #ok { background: #a98fd0; color: #fff; }
+  #ok:disabled { background: #ddd2e8; cursor: not-allowed; }
+  #cancel { background: #e8ddd5; color: #6b5b4f; }
+</style>
+</head>
+<body>
+  <h3>单击轮换形态</h3>
+  <div class="hint">
+    勾选左键单击时会轮流出现的形态，点多少下都不会关窗。<br>
+    至少保留一个；「听歌」平时由音乐自动切换，勾选后单击也会路过它。
+  </div>
+  <div id="list"></div>
+  <div id="order"></div>
+  <div class="row">
+    <button id="cancel">取消</button>
+    <button id="ok">保存</button>
+  </div>
+  <script>
+    const FORMS = [
+      { label: '待机', file: 'assets/juju-idle.png', note: '平时待着的默认状态' },
+      { label: '站立', file: 'assets/form-stand.png', note: '站得直直的' },
+      { label: '抱抱', file: 'assets/form-hug.png', note: '抱着小狗（默认也是悬停牵手反应）' },
+      { label: '听歌', file: 'assets/form-music.png', note: '戴耳机（音乐联动会自动用）' },
+      { label: '生日', file: 'assets/form-birth.png', note: '生日快乐形态' },
+      { label: '微笑', file: 'assets/form-mbti.png', note: 'ISFJ 微笑（默认也是悬停摸头反应）' }
+    ];
+    const DEFAULT_CYCLE = [0, 1, 2, 4, 5];
+
+    const s = (window.petAPI && window.petAPI.getSettings && window.petAPI.getSettings()) || {};
+    const saved = Array.isArray(s.clickCycle) && s.clickCycle.length ? s.clickCycle.slice() : DEFAULT_CYCLE.slice();
+    let picked = FORMS.map((_, i) => saved.includes(i));
+    if (!picked.some(Boolean)) picked[0] = true;
+
+    const list = document.getElementById('list');
+    const order = document.getElementById('order');
+    const ok = document.getElementById('ok');
+
+    function render() {
+      const chosen = [];
+      FORMS.forEach((f, i) => {
+        if (picked[i]) chosen.push(f.label);
+      });
+      order.innerHTML = chosen.length
+        ? '单击顺序：<b>' + chosen.join(' → ') + '</b> → 回到「' + chosen[0] + '」'
+        : '至少要勾选一个形态';
+      ok.disabled = chosen.length === 0;
+    }
+
+    FORMS.forEach((f, i) => {
+      const el = document.createElement('div');
+      el.className = 'item' + (picked[i] ? ' on' : '');
+      const thumb = document.createElement('div');
+      thumb.className = 'thumb';
+      thumb.style.backgroundImage = 'url("' + f.file + '")';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = f.label;
+      const small = document.createElement('small');
+      small.textContent = f.note;
+      name.appendChild(small);
+      const box = document.createElement('div');
+      box.className = 'box';
+      el.appendChild(thumb);
+      el.appendChild(name);
+      el.appendChild(box);
+      el.addEventListener('click', () => {
+        picked[i] = !picked[i];
+        el.classList.toggle('on', picked[i]);
+        render();
+      });
+      list.appendChild(el);
+    });
+    render();
+
+    ok.addEventListener('click', () => {
+      const list2 = FORMS.map((_, i) => i).filter((i) => picked[i]);
+      if (!list2.length) return;
+      window.petAPI.submitCycle(list2);
+    });
+    document.getElementById('cancel').addEventListener('click', () => window.petAPI.cancelCycle());
+  </script>
+</body>
+</html>

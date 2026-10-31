@@ -1,6 +1,6 @@
 {
   "name": "juju-desktop-pet",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "啾莉恩桌宠 - desktop pet",
   "main": "main.js",
   "author": "uuno-123",
@@ -24,14 +24,25 @@
       "style.css",
       "pet.js",
       "reminder.html",
+      "todo.html",
       "pomo-input.html",
       "lines-editor.html",
+      "cycle-editor.html",
+      "star.html",
       "assets/**/*"
     ],
     "extraResources": [
       {
         "from": "tools/audio_watch.exe",
         "to": "audio_watch.exe"
+      },
+      {
+        "from": "tools/fullscreen_watch.ps1",
+        "to": "fullscreen_watch.ps1"
+      },
+      {
+        "from": "tools/desk_action.ps1",
+        "to": "desk_action.ps1"
       }
     ],
     "win": {

@@ -91,6 +91,10 @@ def main():
             music = False
             emit({'type': 'state', 'music': False, 'peak': round(peak, 4)})
 
+        # 播放中每 100ms 报一次峰值：主进程据此做节拍检测（音乐律动）
+        if music:
+            emit({'type': 'peak', 'v': round(peak, 3)})
+
         if now - last_beat >= HEARTBEAT_SEC:
             emit({'type': 'beat', 'music': music,
                   'peak10s': round(max_peak, 4),

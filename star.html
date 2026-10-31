@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>star</title>
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+    -webkit-app-region: no-drag;
+  }
+  .star {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;
+    background: #ffd45e;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: twinkle 1.1s ease-in-out infinite;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .18));
+  }
+  .star::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 7px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .75);
+  }
+  @keyframes twinkle {
+    0%, 100% { transform: scale(1) rotate(-6deg); }
+    50% { transform: scale(1.12) rotate(6deg); }
+  }
+</style>
+</head>
+<body>
+  <div class="star"></div>
+</body>
+</html>

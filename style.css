@@ -29,8 +29,44 @@ html, body {
   -webkit-user-drag: none;
 }
 
+/* 视觉层（图片 + 眼睛跟随层）：hop/sway 动画作用于它，保证眼层与图片同步；
+   点击热区仍是外层 #pet-wrap，不受动画影响 */
+#pet-visual {
+  position: relative;
+  pointer-events: none;
+}
+
+/* ---------- 眼睛跟随鼠标 ---------- */
+/* 原理：每个眼睛一个小图层，用原图做背景裁剪对齐，随鼠标方向平移 1~2px */
+.eyeball {
+  position: absolute;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  will-change: background-position;
+}
+.eyeball .lid {           /* 眨眼盖板：脸颊色盖住 + 弧线 */
+  position: absolute;
+  inset: 0;
+  background: #d8c3e9;    /* 脸颊主色（采样自素材） */
+  opacity: 0;
+  transition: opacity .05s;
+}
+.eyeball.blink .lid { opacity: 1; }
+.eyeball .lid::after {    /* 闭眼弧线 */
+  content: '';
+  position: absolute;
+  left: 18%; right: 18%; top: 30%;
+  height: 40%;
+  border: 3px solid #6b5344;   /* 描边棕 */
+  border-top: none;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-radius: 0 0 50% 50%;
+  box-sizing: border-box;
+}
+
 /* ---------- 听歌：跟着音乐摇摆 ---------- */
-body.music #pet-img {
+body.music #pet-visual {
   animation: sway 2.4s ease-in-out infinite;
   transform-origin: center bottom;
 }
@@ -78,12 +114,72 @@ body.music #pet-img {
 /* ---------- 点击跳动 ----------
    动画作用在 #pet-img（视觉本体）而不是 #pet-wrap（点击热区）：
    跳起时热区不动，第二下点击仍落在原位置 → 双击判定不会被跳跃打断 */
-.hop #pet-img { animation: hop 0.5s ease-out; }
+.hop #pet-visual { animation: hop 0.5s ease-out; }
+
+/* ---------- 跟着鼠标跑：跑步动画 ---------- */
+/* --face 控制朝向翻转：向左跑时 body.face-left 设为 -1，动画与静态翻转共用 */
+body.face-left #pet-visual { --face: -1; }
+@keyframes runBounce {
+  0%   { transform: scaleX(var(--face, 1)) translateY(0) rotate(0); }
+  25%  { transform: scaleX(var(--face, 1)) translateY(-7px) rotate(3.5deg); }
+  50%  { transform: scaleX(var(--face, 1)) translateY(-1px) rotate(0); }
+  75%  { transform: scaleX(var(--face, 1)) translateY(-5px) rotate(-2.5deg); }
+  100% { transform: scaleX(var(--face, 1)) translateY(0) rotate(0); }
+}
+body.running #pet-visual {
+  animation: runBounce 0.42s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* ---------- 悬停部位反应动画 ---------- */
+/* 摸头：开心扭动（左右歪头 + 压缩拉伸） */
+@keyframes giggle {
+  0%, 100% { transform: rotate(0) scale(1, 1); }
+  25%      { transform: rotate(-7deg) scale(1.05, 0.95); }
+  50%      { transform: rotate(6deg) scale(0.96, 1.05); }
+  75%      { transform: rotate(-4deg) scale(1.03, 0.97); }
+}
+body.giggle #pet-visual {
+  animation: giggle 0.75s ease-in-out;
+  transform-origin: center bottom;
+}
+/* 牵手：朝你蹦一下 + 挥手似的摆动 */
+@keyframes wave {
+  0%, 100% { transform: rotate(0) translateY(0); }
+  30%      { transform: rotate(8deg) translateY(-8px); }
+  60%      { transform: rotate(-5deg) translateY(-2px); }
+}
+body.wave #pet-visual {
+  animation: wave 0.7s ease-out;
+  transform-origin: center bottom;
+}
 @keyframes hop {
   0%   { transform: translateY(0); }
   35%  { transform: translateY(-26px) scale(1.03); }
   65%  { transform: translateY(0) scale(0.97, 1.04); }
   100% { transform: translateY(0) scale(1); }
+}
+
+/* ---------- 音乐律动：跟着节拍轻轻弹 ---------- */
+@keyframes groove {
+  0%   { transform: scaleX(var(--face, 1)) translateY(0) scale(1, 1); }
+  35%  { transform: scaleX(var(--face, 1)) translateY(-3px) scale(1.03, 0.97); }
+  100% { transform: scaleX(var(--face, 1)) translateY(0) scale(1, 1); }
+}
+body.groove #pet-visual {
+  animation: groove 0.36s ease-out;
+  transform-origin: center bottom;
+}
+
+/* ---------- 躲猫猫：被吓一跳的小压缩 ---------- */
+@keyframes dodge {
+  0%   { transform: scaleX(var(--face, 1)) scale(1, 1); }
+  40%  { transform: scaleX(var(--face, 1)) scale(0.88, 1.1); }
+  100% { transform: scaleX(var(--face, 1)) scale(1, 1); }
+}
+body.dodge #pet-visual {
+  animation: dodge 0.3s ease-out;
+  transform-origin: center bottom;
 }
 
 /* ---------- 台词气泡（悬在头左上方，尾巴指向头） ---------- */
