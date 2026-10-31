@@ -129,9 +129,11 @@ function buildEyes(idx) {
   eyeEls = [];
   eyeCfg = FORM_EYES[idx] || null;
   if (!eyeCfg) return;
-  const rect = petImg.getBoundingClientRect();
-  if (!rect.width || !rect.height) return;
-  const W = rect.width, H = rect.height;
+  // 用布局尺寸（offsetWidth/Height）而不是 getBoundingClientRect：
+  // 后者包含呼吸/hop/摇摆等动画变换，动画进行中量到的尺寸是歪的，
+  // 眼层会永久错位（"偶尔卡住怪眼睛"就是这个原因）
+  const W = petImg.offsetWidth, H = petImg.offsetHeight;
+  if (!W || !H) return;
   const face = faceColors[idx] || '#d8c3e9';
   for (const side of ['l', 'r']) {
     const c = eyeCfg[side];
@@ -594,32 +596,34 @@ function autoSetForm(idx, line, mode) {
   if (window.petAPI) window.petAPI.syncForm(idx);
 }
 
-let musicOffSince = 0;   // 音乐消失时刻：切歌/缓冲的短暂静音不立刻退出音乐形态
+// 睡意判定：与听歌形态共存（听歌形象 + Zzz），不抢形态
+function sleepDue() {
+  return (T.sleep && state.idleSec >= idleSleepSec) || state.lockSleep === true;
+}
+
 function updateAutoState() {
   const now = Date.now();
 
-  // 听歌形态最高优先级（睡觉除外：睡着就不被音乐吵醒；实时跟随系统音频，不受手动锁定/冷却影响）
+  // 听歌形态实时跟随系统音频（不受手动锁定/冷却影响）；
+  // 听歌时犯困不换睡姿，只在听歌形象上冒 Zzz
   if (state.music) {
-    musicOffSince = 0;
-    if (state.autoMode !== 'music' && state.autoMode !== 'sleep') {
+    if (state.autoMode !== 'music') {
       stopWalkNow();
       // 进入听歌形态：台词池有内容才说话（清空 = 安静进入）
       const musicLines = formLines[MUSIC_IDX] || [];
       autoSetForm(MUSIC_IDX,
         musicLines.length ? renderLine(pickRandom(musicLines)) : '',
         'music');
-      return;
     }
-    if (state.autoMode === 'music') return;
+    document.body.classList.toggle('sleeping', sleepDue());
+    return;
   }
   if (!state.music && state.autoMode === 'music') {
-    // 音乐停了先等 15 秒再退出：歌与歌之间的间隙、偶尔的缓冲不算"听完了"
-    if (!musicOffSince) musicOffSince = now;
-    if (now - musicOffSince < 15000) return;
-    musicOffSince = 0;
-    // 若音乐结束的瞬间已经睡着（如锁屏），保持睡姿安静退出
+    // 音乐结束。刚才若已在听歌形态上睡着（Zzz 挂着），转为普通睡觉，安静别吵醒
     if (document.body.classList.contains('sleeping')) {
       state.autoMode = 'sleep';
+      setFormVisual(0);
+      document.body.classList.remove('music');
       return;
     }
     // 音乐结束：若还在手动锁定期内，恢复用户手选的形态，否则回待机
@@ -640,9 +644,8 @@ function updateAutoState() {
   if (now < state.manualUntil) return;
   if (state.autoMode === 'manual') state.autoMode = 'idle';
 
-  // 睡觉：无操作到点，或锁屏后睡着（「锁屏时也睡觉」）
-  const wantSleep = (T.sleep && state.idleSec >= idleSleepSec) || state.lockSleep === true;
-  if (wantSleep) {
+  // 睡觉：无操作到点，或锁屏后睡着（「锁屏时也睡觉」）；听歌形态除外（在上面已用 Zzz 共存处理）
+  if (sleepDue()) {
     if (state.autoMode !== 'sleep') {
       stopWalkNow();
       autoSetForm(0, eventLine('sleep'), 'sleep');
@@ -761,7 +764,7 @@ if (window.petAPI) {
       state.lockSleep = false;
       state.idleSec = 0;   // 人回来了：不解零的话下一轮自动状态机会立刻又睡回去
       walkRestEnd = 0; walkPhaseEnd = 0;
-      state.autoMode = 'idle';
+      if (state.autoMode === 'sleep') state.autoMode = 'idle';   // 听歌形态保持，音乐停了自然会退出
       state.lastSwitch = Date.now();
       state.manualUntil = 0;
       if (wasSleeping) showBubble(eventLine('wake'));   // 睡着的按"醒来"打招呼
@@ -773,15 +776,19 @@ if (window.petAPI) {
     window.petAPI.onEnvLock(() => {
       // 锁屏等于离开：把空闲计时推满，避免解锁瞬间乱切形态
       state.idleSec = Math.max(state.idleSec, idleSleepSec > 0 ? idleSleepSec : 600);
-      // 「锁屏时也睡觉」：即使自动睡觉设成「从不」，锁屏后也让它趴下睡
+      // 「锁屏时也睡觉」：听歌形态上直接挂 Zzz 继续睡，别的形态换成睡姿
       if (sleepOnLock && state.autoMode !== 'sleep') {
         stopWalkNow();
         state.lockSleep = true;
-        state.autoMode = 'sleep';
         state.lastSwitch = Date.now();
-        setFormVisual(0);
-        document.body.classList.remove('music');
-        document.body.classList.add('sleeping');
+        if (state.autoMode === 'music') {
+          document.body.classList.add('sleeping');
+        } else {
+          state.autoMode = 'sleep';
+          setFormVisual(0);
+          document.body.classList.remove('music');
+          document.body.classList.add('sleeping');
+        }
       }
     });
   }
