@@ -399,6 +399,8 @@ function setForm(idx) {
 
 ipcMain.on('select-form', (_e, idx) => setForm(idx));
 ipcMain.on('sync-form', (_e, idx) => { currentForm = idx; });
+let petSleeping = false;   // 渲染层同步：宠物睡着时不掉星星、不追星星
+ipcMain.on('sleep-state', (_e, v) => { petSleeping = !!v; });
 
 function setScale(idx) {
   settings.scaleIdx = Math.max(0, Math.min(2, idx));
@@ -1076,7 +1078,7 @@ function buildMenu(popup = false) {
         { label: '锁屏', click: () => runDeskAction('lock') },
         { label: '打开设置文件夹', click: () => { try { shell.openPath(app.getPath('userData')); } catch (_) {} } },
         { type: 'separator' },
-        { label: '撒一颗小星星', click: () => { if (!dropStar() && win) win.webContents.send('notice', '现在不方便撒星星（全屏或专注中）'); } }
+        { label: '撒一颗小星星', click: () => { if (!dropStar() && win) win.webContents.send('notice', '现在不方便撒星星（全屏、专注或睡觉中）'); } }
       ]
     },
     {
@@ -1347,6 +1349,7 @@ function starCount() {
 
 function dropStar() {
   if (starWin || !win || win.isDestroyed() || !win.isVisible()) return false;
+  if (petSleeping) return false;   // 睡着呢，别拿星星吵它
   if (fsActive || pomodoroRunning && settings.toggles.focusQuiet !== false) return false;
   const { workArea } = screen.getPrimaryDisplay();
   const x = Math.round(workArea.x + 60 + Math.random() * Math.max(10, workArea.width - 160));
@@ -1365,6 +1368,8 @@ function dropStar() {
   starPos = { x, y };
   starVy = 0;
   starGrounded = false;
+  // 掉落预告：让"宠物突然横穿屏幕"这件事有前因后果
+  if (win && !win.isDestroyed()) win.webContents.send('notice', '✨ 有小星星掉下来啦，我去捡！');
 
   clearInterval(starFallTimer);
   starFallTimer = setInterval(() => {
@@ -1399,8 +1404,12 @@ function startStarChase() {
   const startedAt = Date.now();
   starChaseTimer = setInterval(() => {
     if (!starWin || !win || !starPos || win.isDestroyed()) { stopStarChase(); return; }
+    if (petSleeping) { closeStar(); return; }   // 追着追着睡着了（如锁屏），星星自己消失
     if (!starGrounded) return;
-    if (Date.now() - startedAt > 15000) { closeStar(); return; }   // 追不到就算了，别一直跑
+    if (Date.now() - startedAt > 15000) {
+      if (win && !win.isDestroyed()) win.webContents.send('notice', '没追上…星星自己溜走了');
+      closeStar(); return;   // 追不到就算了，别一直跑
+    }
     if (Date.now() - lastDragAt < 500) { closeStar(); return; }   // 用户正在拖宠物，先别抢
     const b = win.getBounds();
     const cx = b.x + b.width / 2;

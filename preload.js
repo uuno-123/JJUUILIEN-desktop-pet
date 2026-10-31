@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('petAPI', {
   reportWidth: (w) => ipcRenderer.send('pet-width', w),
   selectForm: (idx) => ipcRenderer.send('select-form', idx),
   syncForm: (idx) => ipcRenderer.send('sync-form', idx),
+  sleepState: (v) => ipcRenderer.send('sleep-state', v),
 
   onSetForm: (cb) => ipcRenderer.on('set-form', (_e, idx) => cb(idx)),
   onSetScale: (cb) => ipcRenderer.on('set-scale', (_e, idx) => cb(idx)),

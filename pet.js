@@ -594,20 +594,34 @@ function autoSetForm(idx, line, mode) {
   if (window.petAPI) window.petAPI.syncForm(idx);
 }
 
+let musicOffSince = 0;   // 音乐消失时刻：切歌/缓冲的短暂静音不立刻退出音乐形态
 function updateAutoState() {
   const now = Date.now();
 
-  // 听歌形态最高优先级：实时跟随系统音频（不受手动锁定/冷却/睡觉影响）
-  if (state.music && state.autoMode !== 'music') {
-    stopWalkNow();
-    // 进入听歌形态：台词池有内容才说话（清空 = 安静进入）
-    const musicLines = formLines[MUSIC_IDX] || [];
-    autoSetForm(MUSIC_IDX,
-      musicLines.length ? renderLine(pickRandom(musicLines)) : '',
-      'music');
-    return;
+  // 听歌形态最高优先级（睡觉除外：睡着就不被音乐吵醒；实时跟随系统音频，不受手动锁定/冷却影响）
+  if (state.music) {
+    musicOffSince = 0;
+    if (state.autoMode !== 'music' && state.autoMode !== 'sleep') {
+      stopWalkNow();
+      // 进入听歌形态：台词池有内容才说话（清空 = 安静进入）
+      const musicLines = formLines[MUSIC_IDX] || [];
+      autoSetForm(MUSIC_IDX,
+        musicLines.length ? renderLine(pickRandom(musicLines)) : '',
+        'music');
+      return;
+    }
+    if (state.autoMode === 'music') return;
   }
   if (!state.music && state.autoMode === 'music') {
+    // 音乐停了先等 15 秒再退出：歌与歌之间的间隙、偶尔的缓冲不算"听完了"
+    if (!musicOffSince) musicOffSince = now;
+    if (now - musicOffSince < 15000) return;
+    musicOffSince = 0;
+    // 若音乐结束的瞬间已经睡着（如锁屏），保持睡姿安静退出
+    if (document.body.classList.contains('sleeping')) {
+      state.autoMode = 'sleep';
+      return;
+    }
     // 音乐结束：若还在手动锁定期内，恢复用户手选的形态，否则回待机
     if (now < state.manualUntil && state.manualIdx >= 0) {
       setFormVisual(state.manualIdx);
@@ -676,6 +690,13 @@ function updateAutoState() {
   }
 }
 setInterval(updateAutoState, 200);
+
+// 睡觉状态同步给主进程：睡觉时不掉星星、不被星星拽起来跑
+if (window.petAPI && window.petAPI.sleepState) {
+  new MutationObserver(() => {
+    window.petAPI.sleepState(document.body.classList.contains('sleeping'));
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+}
 
 // ---------- 空闲 / 设置 / 提醒（主进程事件） ----------
 let activeMs = 0;            // 连续活跃时长（久坐提醒）
