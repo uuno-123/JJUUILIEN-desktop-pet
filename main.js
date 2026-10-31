@@ -106,6 +106,12 @@ try {
   // 悬停反应映射 & 单击轮换表：老配置文件没有这两项时补默认
   settings.hover = Object.assign({ head: 5, hand: 2 }, s.hover || {});
   settings.idle = Object.assign({}, defaults.idle, s.idle || {});
+  // 好感度老用户补偿：上线前的摸头/星星/番茄按同规则折算成初始好感（一次性）
+  settings.affection = Object.assign({}, defaults.affection, s.affection || {});
+  if (!s.affection) {
+    const st = settings.stats || {};
+    settings.affection.points = (st.pats || 0) * 1 + (st.stars || 0) * 2 + (st.tomatoes || 0) * 5;
+  }
   // 老版本只有 toggles.sleep / toggles.walk 两个开关 → 迁移成分钟数（关 = 0）
   if (!s.idle) {
     if (s.toggles && s.toggles.sleep === false) settings.idle.sleepMin = 0;
