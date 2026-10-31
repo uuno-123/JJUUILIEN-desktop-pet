@@ -44,6 +44,7 @@ const EVENT_DEFAULTS = {
   pomoBreak: '专注结束！休息 {min} 分钟～',
   pomoLong: '完成 4 轮！大休息 {min} 分钟，最棒了！',
   pomoResume: '休息结束！新一轮专注开始',
+  levelUp: '我们的感情升级啦！现在是 Lv.{lv} · {lvName} ♡',
   pomoStop: '番茄钟停止了（下次再来）',
   pomoWarn1: '还剩 1 分钟～',
   pomoWarn10: '还剩 10 秒！',
@@ -89,7 +90,21 @@ function applyFormWidth(idx) {
   petWrap.style.marginLeft = -(w / 2) + 'px';
   // 上报宠物实际视觉宽度，主进程吸附时以宠物本体为基准
   if (window.petAPI && window.petAPI.reportWidth) window.petAPI.reportWidth(w);
+  reportMetrics();
   if (petImg.complete && petImg.naturalWidth) buildEyes(idx);
+}
+
+// 上报宠物在窗口内的垂直位置与高度（顶边栖息要对齐屏幕顶边）
+let lastMetrics = { top: -1, height: -1 };
+function reportMetrics() {
+  if (!window.petAPI || !window.petAPI.reportMetrics) return;
+  requestAnimationFrame(() => {
+    const r = petWrap.getBoundingClientRect();
+    const top = Math.round(r.top), height = Math.round(r.height);
+    if (Math.abs(top - lastMetrics.top) < 1 && Math.abs(height - lastMetrics.height) < 1) return;
+    lastMetrics = { top, height };
+    window.petAPI.reportMetrics(top, height);
+  });
 }
 
 // ============================================================
@@ -434,12 +449,13 @@ function doReact(zone) {
   return true;
 }
 
-// 摸头彩蛋：跳一下 + 摸头台词
+// 摸头彩蛋：跳一下 + 摸头台词（顺带涨好感）
 function doPat() {
   document.body.classList.remove('hop');
   void document.body.offsetWidth;
   document.body.classList.add('hop');
   showBubble(eventLine('pat'));
+  if (window.petAPI && window.petAPI.affectionGain) window.petAPI.affectionGain();
 }
 
 // 动作执行：cycle / pat / none 本地处理（要配合动画），其余交给主进程
@@ -565,7 +581,7 @@ const state = {
 };
 
 // 功能开关（主进程设置同步）
-let T = { audio: true, sleep: true, walk: true, sedentary: true, water: true };
+let T = { audio: true, sleep: true, walk: true, sedentary: true, water: true, typing: true, groove: true };
 
 // ---------- 自行散步 ----------
 function stopWalkNow() {
@@ -667,6 +683,7 @@ function updateAutoState() {
   if (state.idleSec < walkStartSec) { walkPhaseEnd = 0; walkRestEnd = 0; }
   let walkOk = T.walk
     && !isQuietFocus()
+    && !document.body.classList.contains('perch')   // 挂在顶边时不散步
     && state.autoMode === 'idle'
     && !state.music
     && state.idleSec >= walkStartSec
@@ -694,10 +711,11 @@ function updateAutoState() {
 }
 setInterval(updateAutoState, 200);
 
-// 睡觉状态同步给主进程：睡觉时不掉星星、不被星星拽起来跑
+// 睡觉 / 听歌状态同步给主进程：睡觉时不掉星星，听歌时不掉也不追星星
 if (window.petAPI && window.petAPI.sleepState) {
   new MutationObserver(() => {
     window.petAPI.sleepState(document.body.classList.contains('sleeping'));
+    if (window.petAPI.musicState) window.petAPI.musicState(document.body.classList.contains('music'));
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 
@@ -756,6 +774,18 @@ if (window.petAPI) {
     });
   }
 
+  // 打字模仿：跟着你的键盘/鼠标节奏轻点（睡着、专注、跑动时不打扰）
+  let typingTimer = null;
+  if (window.petAPI.onInputActivity) {
+    window.petAPI.onInputActivity(() => {
+      if (T.typing === false) return;
+      if (document.body.classList.contains('sleeping') || isRunning || isQuietFocus()) return;
+      document.body.classList.add('typing');
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => document.body.classList.remove('typing'), 700);
+    });
+  }
+
   // 锁屏 / 解锁：回来打个招呼，顺手把睡觉状态叫醒
   if (window.petAPI.onEnvUnlock) {
     window.petAPI.onEnvUnlock(() => {
@@ -790,6 +820,22 @@ if (window.petAPI) {
           document.body.classList.add('sleeping');
         }
       }
+    });
+  }
+
+  // 顶边栖息：窗口被贴到屏幕顶 → 翻转挂住（气泡改到下方，走路暂停）
+  if (window.petAPI.onPerch) {
+    window.petAPI.onPerch((on) => {
+      document.body.classList.toggle('perch', on);
+      if (on) {
+        state.walking = false;
+        document.body.classList.remove('walking');
+        document.body.classList.add('perch-pop');
+        setTimeout(() => document.body.classList.remove('perch-pop'), 600);
+      }
+      // 进出栖息后宠物在窗口里的位置变了，重新上报尺寸
+      setTimeout(reportMetrics, 120);
+      setTimeout(reportMetrics, 400);
     });
   }
 
@@ -1087,3 +1133,57 @@ setInterval(() => {
   document.body.appendChild(z);
   setTimeout(() => z.remove(), 3000);
 }, 1500);
+
+// ---------- 状态角标：头顶小胶囊（💤 睡觉 / 🎧 听歌 / ⏱ 专注 / ☕ 休息 / 🚶 散步） ----------
+(function () {
+  const badgeEl = document.getElementById('badge');
+  if (!badgeEl) return;
+  let cur = '';
+  function badgeNow() {
+    if (document.body.classList.contains('sleeping')) return '💤';
+    if (document.body.classList.contains('music')) return '🎧';
+    if (pomo.running) return pomo.phase === 'focus' ? '⏱' : '☕';
+    if (state.walking) return '🚶';
+    return '';
+  }
+  setInterval(() => {
+    const t = badgeNow();
+    if (t === cur) return;
+    const wasShown = cur !== '';
+    cur = t;
+    if (!t) { badgeEl.classList.remove('show'); return; }
+    badgeEl.textContent = t;
+    badgeEl.classList.add('show');
+    if (wasShown) {   // 状态切换时小弹跳一下
+      badgeEl.classList.remove('pop');
+      void badgeEl.offsetWidth;
+      badgeEl.classList.add('pop');
+    }
+  }, 400);
+})();
+
+// ---------- 好感度：爱心粒子 + 升级庆祝 ----------
+(function () {
+  function spawnHearts(n, big) {
+    for (let i = 0; i < n; i++) {
+      const h = document.createElement('span');
+      h.className = 'aff-heart' + (big ? ' big' : '');
+      h.textContent = Math.random() < 0.3 ? '♥' : '♡';
+      h.style.left = (38 + Math.random() * 34) + '%';
+      h.style.animationDelay = (i * 0.12) + 's';
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 2200 + i * 120);
+    }
+  }
+  if (window.petAPI && window.petAPI.onAffection) {
+    window.petAPI.onAffection((a) => {
+      spawnHearts(a.leveled ? 8 : 1, a.leveled);
+      if (a.leveled) {
+        showBubble(eventLine('levelUp', { lv: a.level + 1, lvName: a.lvName }));
+        document.body.classList.remove('hop');
+        void document.body.offsetWidth;
+        document.body.classList.add('hop');
+      }
+    });
+  }
+})();

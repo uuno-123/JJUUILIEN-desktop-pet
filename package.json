@@ -46,16 +46,25 @@
       }
     ],
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico"
     },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "createDesktopShortcut": "always",
-    "createStartMenuShortcut": true,
-    "shortcutName": "啾莉恩桌宠"
-  }
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "啾莉恩桌宠"
+    },
+    "asarUnpack": [
+      "**/node_modules/uiohook-napi/**"
+    ]
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.5"
   }
 }

@@ -70,6 +70,7 @@ const defaults = {
     quietFullscreen: true,   // 全屏看视频/玩游戏时自动隐身
     focusQuiet: true,        // 番茄钟专注阶段保持安静（不散步、不报时、不闲聊）
     groove: true,            // 跟着音乐节拍晃动
+    typing: true,            // 打字/点鼠标时角色跟着轻敲（全局输入监听）
     starDrop: true,          // 偶尔掉落小星星，跑过去捡
     hideAndSeek: true        // 光标突然冲过来时闪开（躲猫猫）
   },
@@ -88,6 +89,7 @@ const defaults = {
   lines: {},             // 每形态自定义台词 { [formIdx]: [台词, ...] }
   eventLines: {},        // 系统事件自定义台词 { [事件key]: [台词, ...] }（空/缺失 = 用内置默认）
   stats: { date: '', tomatoes: 0, focusMin: 0, streak: 0, lastFocusDate: '', stars: 0, pats: 0 },
+  affection: { points: 0 },           // 好感度：只升不降，等级由累计分数决定
   lastUpdateCheck: 0,                 // 上次自动检查更新的时间戳（24h 内不重复检查）
   skipVersion: ''                     // 用户点了「以后再说」的版本，该版本不再弹提示
 };
@@ -227,6 +229,7 @@ function createWindow() {
   win.loadFile('index.html');
   win.setIgnoreMouseEvents(true, { forward: true });
   startCursorWatch();
+  startInputWatch();
 
   win.on('closed', () => { win = null; });
 }
@@ -257,6 +260,15 @@ ipcMain.on('pet-width', (_e, w) => {
   const v = Number(w);
   if (v > 40 && v < 400) petVisualW = v;
 });
+// 宠物在窗口内的垂直位置/高度（窗口带透明边距，顶边栖息要用）
+let petTopPx = 0;
+let petHeightPx = 0;
+ipcMain.on('pet-metrics', (_e, m) => {
+  if (!m) return;
+  const t = Number(m.top), h = Number(m.height);
+  if (Number.isFinite(t) && t >= 0 && t < 2000) petTopPx = t;
+  if (Number.isFinite(h) && h > 30 && h < 800) petHeightPx = h;
+});
 
 // 以宠物本体为基准的水平夹取范围：允许本体最多一半伸出屏幕外（探头效果），但永不完全消失
 function petHBounds(workArea, ww) {
@@ -269,6 +281,28 @@ function petHBounds(workArea, ww) {
   };
 }
 
+// 顶边栖息：宠物头顶贴住屏幕顶边 → 翻转挂上去（Shimeji 天花板式）
+let perchOn = false;
+let perchExtended = false;   // 栖息时窗口向下加高，给气泡留出屏幕内空间
+function setPerch(on) {
+  if (perchOn === on) return;
+  perchOn = on;
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('perch', on);
+    try {
+      if (on && !perchExtended) {
+        perchExtended = true;
+        const [ww, wh] = win.getSize();
+        win.setBounds({ height: wh + 120 });
+      } else if (!on && perchExtended) {
+        perchExtended = false;
+        const [ww, wh] = win.getSize();
+        win.setBounds({ height: Math.max(200, wh - 120) });
+      }
+    } catch (_) {}
+  }
+}
+
 // 把窗口夹回工作区，并做边缘吸附（吸附以"宠物本体"为基准，透明边距允许伸出屏幕）
 function snapWindow() {
   if (!win) return;
@@ -279,15 +313,28 @@ function snapWindow() {
   let x = wx, y = wy;
 
   // 边界夹取：宠物本体最多一半探出屏幕左右边缘，上下完整保留
+  // （上边允许把整个窗口推到"宠物顶边贴屏幕顶"的位置，为顶边栖息留出空间）
+  const minY = workArea.y - (petTopPx > 0 ? petTopPx : 0);
   if (x < minX) x = minX;
   if (x > maxX) x = maxX;
-  if (y < workArea.y) y = workArea.y;
+  if (y < minY) y = minY;
   if (y + wh > workArea.y + workArea.height) y = workArea.y + workArea.height - wh;
 
   // 边缘吸附：宠物本体距屏幕左右边缘 <28px 时，让宠物精确贴住边缘
   const petLeft = x + off, petRight = x + ww - off;
   if (Math.abs(petRight - (workArea.x + workArea.width)) < 28) x = workArea.x + workArea.width - ww + off;
   else if (Math.abs(petLeft - workArea.x) < 28) x = workArea.x - off;
+
+  // 顶边栖息：宠物头顶离屏幕顶 <26px → 贴顶并翻转挂住
+  // （栖息时渲染层把宠物锚到窗口顶部，窗口顶=屏幕顶；窗口加高部分留给气泡）
+  if (perchOn) {
+    y = workArea.y;   // 已挂着：保持贴顶（此时渲染层上报的 petTopPx 已变为 0）
+  } else if (petTopPx > 0 && Math.abs(y + petTopPx - workArea.y) < 26) {
+    y = workArea.y;
+    setPerch(true);
+  } else {
+    setPerch(false);
+  }
 
   x = Math.round(x); y = Math.round(y);
   if (x !== wx || y !== wy) win.setPosition(x, y);
@@ -305,6 +352,7 @@ ipcMain.on('move-window', (_e, dx, dy) => {
   if (!win) return;
   stopGlide();  // 拖拽接管，取消滑行
   lastDragAt = Date.now();   // 拖拽期间暂停「跟着鼠标跑」
+  setPerch(false);           // 被拽下来就不挂了
   const [x, y] = win.getPosition();
   win.setPosition(x + Math.round(dx), y + Math.round(dy));
 });
@@ -401,6 +449,8 @@ ipcMain.on('select-form', (_e, idx) => setForm(idx));
 ipcMain.on('sync-form', (_e, idx) => { currentForm = idx; });
 let petSleeping = false;   // 渲染层同步：宠物睡着时不掉星星、不追星星
 ipcMain.on('sleep-state', (_e, v) => { petSleeping = !!v; });
+let petMusic = false;      // 听歌形态：不掉也不追星星（正在享受音乐，别打断）
+ipcMain.on('music-state', (_e, v) => { petMusic = !!v; });
 
 function setScale(idx) {
   settings.scaleIdx = Math.max(0, Math.min(2, idx));
@@ -622,6 +672,7 @@ ipcMain.on('todo-toggle', (_e, id) => {
   if (r.done) {
     const left = settings.reminders.filter((x) => !x.done).length;
     if (win) win.webContents.send('todo-done', left);
+    addAffection(3);   // 完成一件待办：好感 +3
   }
 });
 ipcMain.on('todo-del', (_e, id) => {
@@ -1060,6 +1111,11 @@ function buildMenu(popup = false) {
       label: '番茄钟',
       submenu: [
         { label: `今日已完成 ${pomoToday()} 个番茄`, enabled: false },
+        (() => {
+          const a = affInfo();
+          const prog = a.nextAt ? `（${a.points}/${a.nextAt}）` : `（${a.points} · 满级啦）`;
+          return { label: `❤ Lv.${a.level + 1} ${a.lvName} ${prog}`, enabled: false };
+        })(),
         { label: pomodoroRunning ? '● 进行中…' : `开始专注 (${settings.pomodoro.focus} 分钟)`, enabled: !pomodoroRunning, click: () => win && win.webContents.send('pomodoro-cmd', 'start') },
         { label: '停止番茄钟', enabled: pomodoroRunning, click: () => win && win.webContents.send('pomodoro-cmd', 'stop') },
         { type: 'separator' },
@@ -1104,6 +1160,7 @@ function buildMenu(popup = false) {
         toggleMenuItem('全屏时自动隐身', 'quietFullscreen'),
         toggleMenuItem('专注时保持安静', 'focusQuiet'),
         toggleMenuItem('音乐节拍律动', 'groove'),
+        { label: '打字时跟着敲（全局键盘/鼠标）', type: 'checkbox', checked: t.typing !== false, click: () => { settings.toggles.typing = !(t.typing !== false); saveSettings(); broadcastSettings(); buildTrayMenu(); if (settings.toggles.typing === false) stopInputWatch(); else startInputWatch(); } },
         toggleMenuItem('掉落小星星', 'starDrop'),
         toggleMenuItem('躲猫猫（快速靠近会闪开）', 'hideAndSeek'),
         { label: '全局快捷键（Ctrl+Alt+J 召唤/隐藏）', type: 'checkbox', checked: t.hotkey !== false, click: () => { settings.toggles.hotkey = !(t.hotkey !== false); saveSettings(); applyHotkey(); broadcastSettings(); buildTrayMenu(); } },
@@ -1189,7 +1246,7 @@ function setFollowState(moving, dir) {
 function followStep() {
   try {
     if (!win || win.isDestroyed()) return;
-    const active = settings.toggles.followMouse && Date.now() - lastDragAt > 700;
+    const active = settings.toggles.followMouse && Date.now() - lastDragAt > 700 && !perchOn;
     if (!active || glideTimer) {
       followPos = null;   // 滑行/暂停后重新以当前窗口位置为基准，避免瞬移
       followVel.x = 0; followVel.y = 0;
@@ -1254,6 +1311,41 @@ function startCursorWatch() {
       if (win && !win.isDestroyed()) win.webContents.send('cursor-pos', { x: p.x, y: p.y });
     } catch (_) {}
   }, 50);
+}
+
+// ============================================================
+// 打字模仿：全局键盘 / 鼠标点击 → 角色跟着轻敲（Bongo Cat 式）
+// 只发"有活动"信号，节流到最多 8 次/秒，动画细节全在渲染层
+// ============================================================
+let inputHook = null;
+let lastInputAt = 0;
+
+function startInputWatch() {
+  if (inputHook) return;
+  if (settings.toggles.typing === false) return;
+  try {
+    const { uIOhook } = require('uiohook-napi');
+    const ping = () => {
+      if (settings.toggles.typing === false) return;
+      if (!win || win.isDestroyed() || !win.isVisible()) return;
+      const now = Date.now();
+      if (now - lastInputAt < 120) return;
+      lastInputAt = now;
+      win.webContents.send('input-activity');
+    };
+    uIOhook.on('keydown', ping);
+    uIOhook.on('mousedown', ping);
+    uIOhook.start();
+    inputHook = uIOhook;
+  } catch (e) {
+    console.warn('[input] 全局输入监听不可用：', e && e.message);
+    inputHook = null;
+  }
+}
+
+function stopInputWatch() {
+  try { if (inputHook) inputHook.stop(); } catch (_) {}
+  inputHook = null;
 }
 
 // ============================================================
@@ -1349,7 +1441,7 @@ function starCount() {
 
 function dropStar() {
   if (starWin || !win || win.isDestroyed() || !win.isVisible()) return false;
-  if (petSleeping) return false;   // 睡着呢，别拿星星吵它
+  if (petSleeping || petMusic || perchOn) return false;   // 睡着/听歌/挂在顶边时都别撒星星
   if (fsActive || pomodoroRunning && settings.toggles.focusQuiet !== false) return false;
   const { workArea } = screen.getPrimaryDisplay();
   const x = Math.round(workArea.x + 60 + Math.random() * Math.max(10, workArea.width - 160));
@@ -1404,7 +1496,7 @@ function startStarChase() {
   const startedAt = Date.now();
   starChaseTimer = setInterval(() => {
     if (!starWin || !win || !starPos || win.isDestroyed()) { stopStarChase(); return; }
-    if (petSleeping) { closeStar(); return; }   // 追着追着睡着了（如锁屏），星星自己消失
+    if (petSleeping || petMusic || perchOn) { closeStar(); return; }   // 睡着/听歌/挂顶边了，星星自己消失
     if (!starGrounded) return;
     if (Date.now() - startedAt > 15000) {
       if (win && !win.isDestroyed()) win.webContents.send('notice', '没追上…星星自己溜走了');
@@ -1446,6 +1538,7 @@ function collectStar() {
   starCount();   // 跨天时归零过再计数
   settings.stats.stars = (settings.stats.stars || 0) + 1;
   saveSettings();
+  addAffection(2);   // 捡到星星：好感 +2
   if (win && !win.isDestroyed()) win.webContents.send('notice', `捡到一颗小星星（今天第 ${starsToday} 颗）`);
   snapWindow();
 }
@@ -1541,7 +1634,9 @@ function todayStatText() {
   const streak = s.streak || 0;
   const stars = s.stars || 0;
   const todo = pendingTodos().length;
+  const a = affInfo();
   const parts = [];
+  parts.push(`好感 Lv.${a.level + 1} ${a.lvName}`);
   parts.push(tm ? `今天专注 ${tm} 轮（${fm} 分钟）` : '今天还没有开始专注');
   if (streak > 1) parts.push(`连续 ${streak} 天`);
   if (stars) parts.push(`捡到 ${stars} 颗星星`);
@@ -1589,7 +1684,58 @@ function addFocusSession(minutes) {
   }
   saveSettings();
   buildTrayMenu();
+  addAffection(5);   // 完成一轮专注：好感 +5
 }
+
+// ============================================================
+// 好感度：陪伴的痕迹只增不减
+// 摸头 +1 · 捡星星 +2 · 完成待办 +3 · 完成专注 +5
+// ============================================================
+const AFF_LEVELS = [
+  { at: 0, name: '初见' },
+  { at: 30, name: '混了个眼熟' },
+  { at: 90, name: '朋友' },
+  { at: 200, name: '好朋友' },
+  { at: 380, name: '挚友' },
+  { at: 650, name: '家人' },
+  { at: 1000, name: '心有灵犀' },
+  { at: 1500, name: '形影不离' },
+  { at: 2200, name: '永远的搭子' }
+];
+function affInfo() {
+  const a = settings.affection || (settings.affection = { points: 0 });
+  let level = 0;
+  for (let i = 0; i < AFF_LEVELS.length; i++) {
+    if ((a.points || 0) >= AFF_LEVELS[i].at) level = i;
+  }
+  return {
+    points: a.points || 0,
+    level,                              // 0 基
+    lvName: AFF_LEVELS[level].name,
+    nextAt: AFF_LEVELS[level + 1] ? AFF_LEVELS[level + 1].at : null
+  };
+}
+let lastPatAffAt = 0;
+function addAffection(n, opts) {
+  if (!n) return;
+  const before = affInfo();
+  settings.affection = settings.affection || { points: 0 };
+  settings.affection.points = Math.max(0, before.points + n);
+  saveSettings();
+  const after = affInfo();
+  const leveled = after.level > before.level;
+  // 通知渲染层飘爱心；升级时桌宠自己庆祝
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('affection', { gained: n, points: after.points, level: after.level, lvName: after.lvName, leveled, burst: !!(opts && opts.burst) });
+  }
+  if (leveled) buildTrayMenu();
+}
+ipcMain.on('affection-pat', () => {
+  const now = Date.now();
+  if (now - lastPatAffAt < 2000) return;   // 连续摸头狂刷没意义，2 秒记一次
+  lastPatAffAt = now;
+  addAffection(1);
+});
 
 // 各形态脸颊主色（眨眼盖板用）：图内候选点取第一个不透明像素
 const FACE_COLORS = FORMS.map((f) => {
@@ -1759,6 +1905,6 @@ app.whenReady().then(() => {
   }, 12000);
 });
 
-app.on('before-quit', () => { stopAudioHelper(); stopFullscreenWatch(); closeStar(); savePos(); globalShortcut.unregisterAll(); });
+app.on('before-quit', () => { stopAudioHelper(); stopFullscreenWatch(); closeStar(); stopInputWatch(); savePos(); globalShortcut.unregisterAll(); });
 app.on('will-quit', stopAudioHelper);
 app.on('window-all-closed', () => app.quit());

@@ -227,3 +227,100 @@ body.walking #pet-wrap {
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-4px); }
 }
+
+/* ---------- 状态角标（头顶右侧小胶囊：💤🎧⏱🚶） ---------- */
+#badge {
+  position: absolute;
+  bottom: calc(100% - 10px);        /* 骑在头顶右上方 */
+  right: 2%;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, .92);
+  border: 2px solid #b39ddb;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.2;
+  box-shadow: 0 3px 10px rgba(122, 92, 168, .25);
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+  transform: translateY(6px) scale(.6);
+  transition: opacity .25s, transform .25s cubic-bezier(.3, 1.8, .5, 1);
+}
+#badge.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: badge-bob 2.6s ease-in-out .3s infinite;
+}
+#badge.pop { animation: badge-pop .35s cubic-bezier(.3, 1.8, .5, 1); }
+@keyframes badge-bob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-3px) scale(1.04); }
+}
+@keyframes badge-pop {
+  0%   { transform: scale(.6); }
+  60%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 好感度爱心粒子（头顶飘起） ---------- */
+.aff-heart {
+  position: absolute;
+  bottom: 58%;
+  font-size: 15px;
+  color: #ec7fb6;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, .7);
+  pointer-events: none;
+  animation: heart-float 1.7s ease-out forwards;
+  z-index: 8;
+}
+.aff-heart.big { font-size: 21px; color: #e2599f; }
+@keyframes heart-float {
+  0%   { opacity: 0; transform: translateY(6px) scale(.4) rotate(-8deg); }
+  22%  { opacity: 1; transform: translateY(-6px) scale(1.05) rotate(4deg); }
+  100% { opacity: 0; transform: translateY(-52px) scale(1.2) rotate(-6deg); }
+}
+
+/* ---------- 打字模仿：跟着你的敲击轻轻点头 ---------- */
+@keyframes typingTap {
+  0%, 100% { transform: scaleX(var(--face, 1)) translateY(0) rotate(0) scale(1, 1); }
+  45%      { transform: scaleX(var(--face, 1)) translateY(-2.5px) rotate(-1.6deg) scale(1.012, 0.985); }
+}
+body.typing:not(.running):not(.walking) #pet-visual {
+  animation: typingTap .22s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/* ---------- 顶边栖息：头顶贴住屏幕顶边，翻转挂住轻轻晃 ---------- */
+body.perch #pet-wrap {
+  bottom: auto;          /* 宠物改锚定窗口顶部（窗口顶=屏幕顶） */
+  top: 0;
+  animation: none;       /* 别呼吸，脚要贴住边 */
+}
+body.perch #pet-visual {
+  transform-origin: center center;   /* 中心翻转：角色留在原位，脚朝上贴住顶边 */
+  animation: perchSway 4.2s ease-in-out infinite;
+}
+@keyframes perchSway {
+  0%, 100% { transform: scaleY(-1) rotate(-2.2deg); }
+  50%      { transform: scaleY(-1) rotate(2.2deg); }
+}
+/* 挂着的时候气泡改到下方（上方在屏幕外） */
+body.perch #bubble {
+  bottom: auto;
+  top: calc(100% + 12px);
+  transform-origin: center top;
+  transform: translateX(-65%) scale(0);
+}
+body.perch #bubble.show { transform: translateX(-65%) scale(1); }
+body.perch #bubble::after {
+  bottom: auto;
+  top: -12px;
+  border-top-color: transparent;
+  border-bottom-color: #6b5b4f;
+}
+/* 挂上去的瞬间：小回弹 */
+body.perch.perch-pop #pet-visual { animation: perchPop .5s cubic-bezier(.3, 1.6, .5, 1), perchSway 4.2s ease-in-out .5s infinite; }
+@keyframes perchPop {
+  0%   { transform: scaleY(-1) translateY(-10px) scale(0.94, 1.06); }
+  100% { transform: scaleY(-1) translateY(0) scale(1, 1); }
+}

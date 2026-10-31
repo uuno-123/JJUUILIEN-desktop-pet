@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('petAPI', {
   selectForm: (idx) => ipcRenderer.send('select-form', idx),
   syncForm: (idx) => ipcRenderer.send('sync-form', idx),
   sleepState: (v) => ipcRenderer.send('sleep-state', v),
+  musicState: (v) => ipcRenderer.send('music-state', v),
+  affectionGain: () => ipcRenderer.send('affection-pat'),
+  onAffection: (cb) => ipcRenderer.on('affection', (_e, a) => cb(a)),
+  onInputActivity: (cb) => ipcRenderer.on('input-activity', () => cb()),
+  reportMetrics: (top, height) => ipcRenderer.send('pet-metrics', { top, height }),
+  onPerch: (cb) => ipcRenderer.on('perch', (_e, on) => cb(!!on)),
 
   onSetForm: (cb) => ipcRenderer.on('set-form', (_e, idx) => cb(idx)),
   onSetScale: (cb) => ipcRenderer.on('set-scale', (_e, idx) => cb(idx)),
